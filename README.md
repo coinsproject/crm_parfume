@@ -91,8 +91,8 @@
 
 1. Клонируйте репозиторий:
    ```bash
-   git clone <repository-url>
-   cd CRM
+   git clone https://github.com/coinsproject/crm_parfume.git
+   cd crm_parfume
    ```
 
 2. Создайте файл `.env` (опционально) для настройки переменных окружения:
