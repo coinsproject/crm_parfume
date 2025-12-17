@@ -25,7 +25,13 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.models import Base
+from app.config import DATABASE_URL  # Импортируем DATABASE_URL из конфигурации
+
 target_metadata = Base.metadata
+
+# Переопределяем sqlalchemy.url из конфигурации приложения
+# Это позволяет использовать правильный путь к БД в Docker и локально
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
