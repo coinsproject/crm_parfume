@@ -1,0 +1,128 @@
+{% extends "layout.html" %}
+{% block title %}Заказ #{{ order.id }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0">Заказ #{{ order.id }}</h2>
+        <div>
+            <a href="/orders/{{ order.id }}/edit" class="btn btn-outline-primary btn-sm">Редактировать</a>
+            <a href="/orders" class="btn btn-secondary btn-sm">Назад</a>
+        </div>
+    </div>
+    <div class="d-flex gap-2 mb-3">
+        <a href="/orders" class="btn btn-outline-secondary">← К списку заказов</a>
+        <a href="/dashboard" class="btn btn-outline-secondary">На главную</a>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Клиент</h6>
+                    <p class="card-text">{{ order.client.name if order.client else '-' }}</p>
+                </div>
+            </div>
+        </div>
+        {% if not is_partner_user %}
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Партнёр</h6>
+                    <p class="card-text">{{ order.partner.name if order.partner else '-' }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Статус</h6>
+                    <p class="card-text">{{ status_labels.get(order.status, order.status) }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-responsive mb-3">
+        <table class="table table-bordered align-middle">
+            <thead>
+                <tr>
+                    <th>Товар</th>
+                    <th>Кол-во</th>
+                    {% if can_view_client_price %}<th>Цена для клиента</th>{% endif %}
+                    {% if can_view_client_price %}<th>Сумма для клиента</th>{% endif %}
+                    {% if can_view_cost %}<th>Себестоимость</th>{% endif %}
+                    {% if can_view_margin %}<th>Маржа</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order.items %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            {% if item.catalog_item and item.catalog_item.image_url %}
+                                <img src="{{ item.catalog_item.image_url }}" alt="img" style="width:48px;height:48px;object-fit:cover;border-radius:6px;">
+                            {% endif %}
+                            <div>
+                                {% if item.catalog_item %}
+                                    <div class="fw-semibold">{{ item.catalog_item.name }}</div>
+                                    <div class="text-muted small">{{ item.catalog_item.brand }}{% if item.catalog_item.volume %}, {{ item.catalog_item.volume }}{% endif %}</div>
+                                    <div class="text-muted small">Артикул: {{ item.catalog_item.article }}</div>
+                                {% else %}
+                                    {{ item.original_name }}
+                                {% endif %}
+                                {% if item.name and (not item.catalog_item) and item.name != item.original_name %}
+                                    <div class="text-muted small">{{ item.name }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ item.qty }}</td>
+                    {% if can_view_client_price %}<td>{{ item.client_price }}</td>{% endif %}
+                    {% if can_view_client_price %}<td>{{ item.line_client_amount }}</td>{% endif %}
+                    {% if can_view_cost %}<td>{{ item.cost_for_owner }}</td>{% endif %}
+                    {% if can_view_margin %}<td>{{ item.line_margin }}</td>{% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Сумма для клиента</h6>
+                    <p class="card-text fw-bold">{{ order.total_client_amount }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Себестоимость</h6>
+                    <p class="card-text fw-bold">
+                        {% if can_view_cost %}{{ order.total_cost_for_owner }}{% else %}—{% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Маржа</h6>
+                    <p class="card-text fw-bold">
+                        {% if can_view_margin %}
+                            {{ order.total_margin_for_owner }}
+                            {% if order.total_margin_percent is not none %}
+                                ({{ "{:.2f}".format(order.total_margin_percent) }}%)
+                            {% endif %}
+                        {% else %}—{% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

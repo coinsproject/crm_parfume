@@ -1,0 +1,149 @@
+{% extends "layout.html" %}
+
+{% block title %}{% if partner %}Редактирование партнёра{% else %}Новый партнёр{% endif %}{% endblock %}
+{% block page_title %}{% if partner %}Редактирование партнёра{% else %}Новый партнёр{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <form method="post" action="{% if partner %}/partners/{{ partner.id }}/edit{% else %}/partners/new{% endif %}" id="partner-form" class="needs-validation">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="mb-3">Основные данные</h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">ФИО партнёра *</label>
+                        <input type="text" class="form-control {% if errors and errors.get('full_name') %}is-invalid{% endif %}" name="full_name" placeholder="Иванов Иван Иванович" value="{{ (form.full_name if form else None) or (partner.full_name if partner else '') }}">
+                        {% if errors and errors.get('full_name') %}<div class="invalid-feedback">{{ errors.get('full_name') }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Телефон *</label>
+                        <input type="text" class="form-control phone-mask {% if errors and errors.get('phone') %}is-invalid{% endif %}" name="phone" placeholder="+7 999 123-45-67" value="{{ (form.phone if form else None) or (partner.phone if partner else '') }}">
+                        {% if errors and errors.get('phone') %}<div class="invalid-feedback">{{ errors.get('phone') }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Telegram (ник)</label>
+                        <input type="text" class="form-control" name="telegram_nick" placeholder="@nickname" value="{{ (form.telegram_nick if form else None) or (partner.telegram_nick if partner else '') }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Telegram (контакт)</label>
+                        <input type="text" class="form-control" name="telegram" value="{{ (form.telegram if form else None) or (partner.telegram if partner else '') }}">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Комментарий / условия сотрудничества</label>
+                        <textarea class="form-control" name="comment" rows="3" placeholder="50/50, лимит скидки 20%, только оригинал...">{{ (form.comment if form else None) or (partner.comment if partner else '') }}</textarea>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+                <h5 class="mb-3">Контакты / доступ</h5>
+                <div class="row g-3">
+                    {% if not partner %}
+                    <div class="col-md-6">
+                        <label class="form-label">Email для входа *</label>
+                        <input type="email" class="form-control {% if errors and errors.get('email') %}is-invalid{% endif %}" name="email" value="{{ (form.email if form else None) or '' }}">
+                        {% if errors and errors.get('email') %}<div class="invalid-feedback">{{ errors.get('email') }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Логин (если нужен свой)</label>
+                        <input type="text" class="form-control" name="username" value="{{ (form.username if form else None) or '' }}">
+                        <div class="form-text">Если оставить пустым, будет использован email.</div>
+                    </div>
+                    {% else %}
+                    <div class="col-md-6">
+                        <label class="form-label">Email</label>
+                        <input type="text" class="form-control" value="{{ partner.user.email if partner.user else '' }}" readonly>
+                    </div>
+                    {% endif %}
+                    <div class="col-md-6">
+                        <label class="form-label">Статус</label>
+                        {% set st = (form.status if form else None) or (partner.status if partner else 'active') %}
+                        <select class="form-select" name="status">
+                            <option value="active" {% if st == 'active' %}selected{% endif %}>Активен</option>
+                            <option value="paused" {% if st == 'paused' %}selected{% endif %}>На паузе</option>
+                            <option value="blocked" {% if st == 'blocked' %}selected{% endif %}>Заблокирован</option>
+                        </select>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+                <h5 class="mb-3">Финансовые условия</h5>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Наценка админа, %</label>
+                        <input type="number" min="0" max="100" step="0.01" class="form-control {% if errors and errors.get('admin_markup_percent') %}is-invalid{% endif %}" name="admin_markup_percent" value="{{ (form.admin_markup_percent if form else None) or (partner.admin_markup_percent if partner and partner.admin_markup_percent is not none else 0) }}">
+                        {% if errors and errors.get('admin_markup_percent') %}<div class="invalid-feedback">{{ errors.get('admin_markup_percent') }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Макс. наценка партнёра, %</label>
+                        <input type="number" min="0" max="100" step="0.01" class="form-control {% if errors and errors.get('max_partner_markup_percent') %}is-invalid{% endif %}" name="max_partner_markup_percent" value="{{ (form.max_partner_markup_percent if form else None) or (partner.max_partner_markup_percent if partner and partner.max_partner_markup_percent is not none else '') }}">
+                        {% if errors and errors.get('max_partner_markup_percent') %}<div class="invalid-feedback">{{ errors.get('max_partner_markup_percent') }}</div>{% endif %}
+                        <div class="form-text">Пусто = без ограничения</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Наценка партнёра по умолчанию, %</label>
+                        <input type="number" min="0" max="100" step="0.01" class="form-control {% if errors and errors.get('partner_default_markup_percent') %}is-invalid{% endif %}" name="partner_default_markup_percent" value="{{ (form.partner_default_markup_percent if form else None) or (partner.partner_default_markup_percent if partner and partner.partner_default_markup_percent is not none else 0) }}">
+                        {% if errors and errors.get('partner_default_markup_percent') %}<div class="invalid-feedback">{{ errors.get('partner_default_markup_percent') }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-4 d-flex align-items-center">
+                        <div class="form-check mt-3">
+                            <input class="form-check-input" type="checkbox" name="can_edit_prices" id="canEditPrices" value="1" {% if (form and form.can_edit_prices) or (partner and partner.can_edit_prices) or (form is none and partner is none) %}checked{% endif %}>
+                            <label class="form-check-label" for="canEditPrices">Партнёр может менять цены</label>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+                <h5 class="mb-3">Дополнительно</h5>
+                <div class="row g-3">
+                    <div class="col-md-4 form-check">
+                        <input class="form-check-input" type="checkbox" name="can_access_catalog" id="canAccessCatalog" value="1" {% if (form and form.can_access_catalog) or (partner and partner.can_access_catalog) %}checked{% endif %}>
+                        <label class="form-check-label" for="canAccessCatalog">Доступ к каталогу</label>
+                    </div>
+                    <div class="col-md-4 form-check">
+                        <input class="form-check-input" type="checkbox" name="is_active" id="isActive" value="1" {% if (partner and partner.is_active) or (partner is none) %}checked{% endif %}>
+                        <label class="form-check-label" for="isActive">Активный</label>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer d-flex gap-2">
+                <a href="/partners" class="btn btn-outline-secondary">Отмена</a>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const phoneInputs = document.querySelectorAll(".phone-mask");
+    const formatPhone = (val) => {
+        const digits = val.replace(/\D/g, "");
+        const clean = digits.startsWith("7") ? digits.slice(1) : digits.startsWith("8") ? digits.slice(1) : digits;
+        const padded = clean.padEnd(10, "");
+        const part1 = padded.slice(0,3).trim();
+        const part2 = padded.slice(3,6).trim();
+        const part3 = padded.slice(6,8).trim();
+        const part4 = padded.slice(8,10).trim();
+        let out = "+7";
+        if (part1) out += ` (${part1}`;
+        if (part1 && part1.length === 3) out += `)`;
+        if (part2) out += ` ${part2}`;
+        if (part3) out += `-${part3}`;
+        if (part4) out += `-${part4}`;
+        return out;
+    };
+    phoneInputs.forEach(inp => {
+        inp.addEventListener("input", () => {
+            const formatted = formatPhone(inp.value);
+            inp.value = formatted.trim();
+            inp.setSelectionRange(formatted.length, formatted.length);
+        });
+        if (inp.value) {
+            inp.value = formatPhone(inp.value);
+        }
+    });
+});
+
+// admin/partner share fields removed; no recalculation needed
+</script>
+{% endblock %}

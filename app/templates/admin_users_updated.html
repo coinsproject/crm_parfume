@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+
+{% block title %}Пользователь обновлён - Parfume CRM{% endblock %}
+
+{% block page_title %}Пользователь обновлён{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Пользователь обновлён</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success" role="alert">
+                        Пользователь <strong>{{ user.username }}</strong> успешно обновлён.
+                    </div>
+                    
+                    <a href="/settings/users" class="btn btn-primary">К списку пользователей</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

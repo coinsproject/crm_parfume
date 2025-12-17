@@ -1,0 +1,65 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ 'Создание роли' if mode == 'create' else 'Редактирование роли' }} - Parfume CRM{% endblock %}
+
+{% block page_title %}{{ 'Создание роли' if mode == 'create' else 'Редактирование роли' }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title mb-0">{{ 'Создание роли' if mode == 'create' else 'Редактирование роли' }}</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ '/settings/roles' if mode == 'create' else '/settings/roles/' ~ role.id }}">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Имя роли</label>
+                            <input type="text" class="form-control" id="name" name="name" value="{{ role.name if role else '' }}" {% if role and role.is_system %}readonly{% endif %} required>
+                            {% if role and role.is_system %}
+                            <div class="form-text">Системные роли нельзя переименовывать.</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Описание</label>
+                            <textarea class="form-control" id="description" name="description" rows="2" placeholder="Опционально">{{ role.description if role else '' }}</textarea>
+                        </div>
+
+                        {% if role and role.name == 'ADMIN' %}
+                            <div class="alert alert-info">Роль ADMIN всегда имеет все права.</div>
+                        {% else %}
+                        <div class="mb-3">
+                            <label class="form-label">Права</label>
+                            {% for group in grouped_permissions %}
+                                {% if group.permissions %}
+                                <div class="mb-2 border rounded p-2">
+                                    <div class="fw-semibold mb-1">{{ group.label }}</div>
+                                    <div class="row">
+                                        {% for perm in group.permissions %}
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="perm_{{ perm.id }}" name="permission_keys" value="{{ perm.key }}" {% if perm.key in selected_keys %}checked{% endif %}>
+                                                <label class="form-check-label" for="perm_{{ perm.id }}">{{ perm.label }}</label>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Сохранить</button>
+                            <a href="/settings/roles" class="btn btn-outline-secondary">Отмена</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,144 @@
+{% extends "layout.html" %}
+{% block title %}Поиск по прайсу{% endblock %}
+{% block page_title %}Поиск по прайсу{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="get" action="/price/search" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label">Поиск</label>
+                    <input type="text" class="form-control" name="q" value="{{ q }}" placeholder="Например: byredo помада 3 г">
+                </div>
+                {% if client_id %}
+                    <input type="hidden" name="client_id" value="{{ client_id }}">
+                {% endif %}
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Найти</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if partner_pricing %}
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                    <div class="fw-semibold">Моя наценка по умолчанию</div>
+                    <div class="text-muted small">
+                        Админ: {{ partner_pricing.admin_markup_percent }}% ·
+                        Партнёр: {{ partner_pricing.partner_default_markup_percent }}% ·
+                        Итого: {{ partner_pricing.total_markup_percent }}%
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <a class="btn btn-outline-secondary btn-sm" href="/partners/me">Профиль</a>
+                    <form method="post" action="/partners/me/markup" class="d-flex gap-2 align-items-end">
+                        <input type="hidden" name="next" value="/price/search">
+                        <div>
+                            <label class="form-label small mb-1">Наценка, %</label>
+                            <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="partner_default_markup_percent" value="{{ partner_pricing.partner_default_markup_percent }}">
+                            {% if partner_pricing.max_partner_markup_percent is not none %}
+                                <div class="form-text">Макс: {{ partner_pricing.max_partner_markup_percent }}%</div>
+                            {% endif %}
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if client %}
+    <div class="alert alert-info" role="alert">
+        Прайс для клиента: <strong>{{ client.name }}</strong>
+        {% if partner_pricing and partner_pricing.total_markup_percent is not none %}
+            (наценка: {{ partner_pricing.total_markup_percent }}%)
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table price-table-custom">
+                    <thead>
+                        <tr>
+                            <th>Артикул</th>
+                            <th>Наименование</th>
+                            {% if partner_pricing %}
+                                <th>Цена по прайсу</th>
+                                <th>+ админ ({{ partner_pricing.admin_markup_percent }}%)</th>
+                                <th>Клиенту ({{ partner_pricing.total_markup_percent }}%)</th>
+                            {% elif can_view_client %}
+                                <th>Цена по прайсу</th>
+                            {% endif %}
+                            {% if can_view_cost and not partner_pricing %}
+                                <th>Цена партнёра (price_2)</th>
+                                <th>Закупка (price_1)</th>
+                            {% endif %}
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in products %}
+                        {% set lh = last_history.get(p.id) %}
+                        <tr>
+                            <td class="text-nowrap">{{ p.external_article }}</td>
+                            <td>
+                                <a href="/price/product/{{ p.id }}" class="text-dark fw-normal text-decoration-none">{{ p.raw_name }}</a>
+                            </td>
+
+                            {% if partner_pricing %}
+                                <td>{{ partner_pricing.base_price_map.get(p.id) }}</td>
+                                <td>{{ partner_pricing.admin_price_map.get(p.id) }}</td>
+                                <td>{{ partner_pricing.total_price_map.get(p.id) }}</td>
+                            {% elif can_view_client %}
+                                <td>{{ base_price_map.get(p.id) }}</td>
+                            {% endif %}
+
+                            {% if can_view_cost and not partner_pricing %}
+                            <td>
+                                {{ price_map.get(p.id) }}
+                                {% if lh and lh.change_type == 'UP' %}<span class="text-success">↑</span>{% endif %}
+                                {% if lh and lh.change_type == 'DOWN' %}<span class="text-danger">↓</span>{% endif %}
+                            </td>
+                            <td>
+                                {{ price_1_map.get(p.id) or "-" }}
+                            </td>
+                            {% endif %}
+
+                            <td class="text-end">
+                                {% if can_create_orders %}
+                                    <a href="/orders/new?price_product_id={{ p.id }}" class="btn btn-sm btn-outline-primary">В заказ</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7" class="text-muted">Нет результатов</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if pages_count and pages_count > 1 %}
+            <nav aria-label="Пагинация прайса">
+                <ul class="pagination mb-0">
+                    {% set prev_page = page - 1 if page > 1 else 1 %}
+                    {% set next_page = page + 1 if page < pages_count else pages_count %}
+                    <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                        <a class="page-link" href="?q={{ q }}&page={{ prev_page }}&page_size={{ page_size }}&upload_id={{ upload_id or '' }}{% if client_id %}&client_id={{ client_id }}{% endif %}">«</a>
+                    </li>
+                    <li class="page-item disabled"><span class="page-link">Стр. {{ page }} из {{ pages_count }}</span></li>
+                    <li class="page-item {% if page == pages_count %}disabled{% endif %}">
+                        <a class="page-link" href="?q={{ q }}&page={{ next_page }}&page_size={{ page_size }}&upload_id={{ upload_id or '' }}{% if client_id %}&client_id={{ client_id }}{% endif %}">»</a>
+                    </li>
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

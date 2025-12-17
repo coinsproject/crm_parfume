@@ -1,0 +1,73 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+*.egg-info/
+dist/
+build/
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+crm*.db
+data/
+db_work/
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+tmp_*.py
+_tmp_*.py
+*.tmp
+
+# Frontend
+node_modules/
+dist/
+build/
+.next/
+
+# Test files
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Alembic cache
+alembic/__pycache__/
+alembic/versions/__pycache__/
+migrations/__pycache__/
+
+# Docker volumes
+docker-data/
+

@@ -1,0 +1,87 @@
+{% extends "layout.html" %}
+
+{% block title %}Двухфакторная аутентификация - Parfume CRM{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-logo">
+            <h2>Parfume CRM</h2>
+        </div>
+        <h3 class="auth-title">Подтверждение входа</h3>
+        <p class="auth-subtitle">Введите код из приложения-аутентификатора или один из резервных кодов</p>
+        
+        <form class="auth-form" id="twoFactorForm">
+            <div class="mb-3">
+                <label for="code" class="form-label">Код подтверждения</label>
+                <input type="text" class="form-control auth-input" id="code" name="code" placeholder="000000" maxlength="6" required>
+                <div id="error-message" class="text-danger mt-1" style="display: none;"></div>
+            </div>
+            <button type="submit" class="btn btn-primary auth-button w-100">Подтвердить код</button>
+        </form>
+        
+        <div class="auth-2fa-hint">
+            <p>У вас включена двухфакторная защита. Откройте приложение-аутентификатор и введите код.</p>
+            <p>Если вы потеряли доступ к приложению, используйте один из резервных кодов.</p>
+        </div>
+        
+        <div class="auth-footer">
+            <a href="/auth/login" class="auth-link">Вернуться к входу</a>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('twoFactorForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const code = document.getElementById('code').value;
+    const errorMessage = document.getElementById('error-message');
+    
+    if (!code || code.length < 6) {
+        errorMessage.textContent = 'Пожалуйста, введите 6-значный код.';
+        errorMessage.style.display = 'block';
+        return;
+    }
+    
+    try {
+        // Вместо получения temp_token из cookie, используем fetch с credentials: 'include'
+        // чтобы автоматически отправить все соответствующие cookies
+        
+        const formData = new FormData();
+        formData.append('code', code);
+        // temp_token будет автоматически включен в запрос, если cookie установлена
+        
+        const response = await fetch('/auth/2fa/verify', {
+            method: 'POST',
+            body: formData,
+            credentials: 'include'  // Включаем cookie в запрос
+        });
+        
+        if (response.ok) {
+            // При успешной верификации токен будет установлен в cookie
+            window.location.href = '/dashboard';
+        } else {
+            let errorData = {};
+            try {
+                errorData = await response.json();
+            } catch (e) {
+                // Если ответ не в формате JSON, создаем объект с общей ошибкой
+                errorData = { detail: 'Ошибка сервера при проверке кода' };
+            }
+            errorMessage.textContent = errorData.detail || 'Неверный код. Пожалуйста, проверьте код и попробуйте снова.';
+            errorMessage.style.display = 'block';
+        }
+    } catch (error) {
+        errorMessage.textContent = 'Ошибка соединения сервером. Пожалуйста, попробуйте снова.';
+        errorMessage.style.display = 'block';
+        console.error('2FA verification error:', error);
+    }
+});
+
+// Очистка сообщения об ошибке при вводе
+document.getElementById('code').addEventListener('input', function() {
+    document.getElementById('error-message').style.display = 'none';
+});
+</script>
+{% endblock %}

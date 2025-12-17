@@ -1,0 +1,111 @@
+{% extends "layout.html" %}
+
+{% block title %}Настройка 2FA - Parfume CRM{% endblock %}
+
+{% block content %}
+<div class="dashboard-layout">
+    {% include "partials/sidebar.html" %}
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Topbar -->
+        <header class="topbar">
+            <div class="container-fluid">
+                <div class="topbar-content">
+                    <h1 class="topbar-title">Настройки безопасности</h1>
+                    <div class="topbar-actions">
+                        <div class="search-form">
+                            <input type="text" class="form-control" placeholder="Поиск...">
+                        </div>
+                        <div class="user-profile">
+                            <div class="user-avatar">{{ current_user.username[0:2].upper() }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 2FA Setup Content -->
+        <div class="container-fluid">
+            <div class="d-flex gap-2 mb-3">
+                <a href="/settings/security" class="btn btn-outline-secondary">← К безопасности</a>
+                <a href="/dashboard" class="btn btn-outline-secondary">На главную</a>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Двухфакторная аутентификация</h3>
+                        </div>
+                        <div class="card-body">
+                            {% if error_message %}
+                            <div class="alert alert-danger" role="alert">
+                                {{ error_message }}
+                            </div>
+                            {% endif %}
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h4>Установка приложения-аутентификатора</h4>
+                                    <ol>
+                                        <li>Установите приложение Google Authenticator, Authy или другое TOTP-приложение на ваш телефон</li>
+                                        <li>Отсканируйте QR-код с помощью приложения</li>
+                                        <li>Введите 6-значный код из приложения в поле ниже</li>
+                                    </ol>
+                                    
+                                    <div class="qr-container text-center mb-4">
+                                        <img src="data:image/png;base64,{{ qr_data }}" alt="QR Code" class="qr-code">
+                                    </div>
+                                    
+                                    <p class="text-center">Или вручную введите ключ: <strong>{{ totp_secret_temp }}</strong></p>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <h4>Подтверждение кода</h4>
+                                    <form id="enable2FAForm" method="post">
+                                        <div class="mb-3">
+                                            <label for="code" class="form-label">6-значный код из приложения</label>
+                                            <input type="text" class="form-control" id="code" name="code" placeholder="00000" maxlength="6" required>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">Включить 2FA</button>
+                                        <a href="/settings/security" class="btn btn-secondary">Отмена</a>
+                                    </form>
+                                    <script>
+                                        document.getElementById('enable2FAForm').addEventListener('submit', async function(e) {
+                                            e.preventDefault();
+                                            
+                                            const formData = new FormData(this);
+                                            const code = formData.get('code');
+                                            
+                                            try {
+                                                const response = await fetch('/settings/2fa/enable', {
+                                                    method: 'POST',
+                                                    headers: {
+                                                        'Content-Type': 'application/x-www-form-urlencoded',
+                                                    },
+                                                    body: `code=${encodeURIComponent(code)}`
+                                                });
+                                                
+                                                if (response.ok) {
+                                                    // Если включение 2FA прошло успешно, перенаправляем на страницу с резервными кодами
+                                                    window.location.href = '/settings/2fa';
+                                                } else {
+                                                    const errorData = await response.json();
+                                                    alert('Ошибка: ' + (errorData.detail || 'Неизвестная ошибка'));
+                                                }
+                                            } catch (error) {
+                                                console.error('Error:', error);
+                                                alert('Ошибка соединения с сервером');
+                                            }
+                                        });
+                                    </script>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

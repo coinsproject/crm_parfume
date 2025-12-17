@@ -1,0 +1,68 @@
+{% extends "layout.html" %}
+
+{% block title %}Заказы - Parfume CRM{% endblock %}
+{% block page_title %}Заказы{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h1 class="h4 mb-0">Заказы</h1>
+  <form class="d-flex flex-wrap gap-2" method="get" action="/orders">
+    <input type="text" class="form-control form-control-sm" name="q" placeholder="Поиск №/ФИО/тел" value="{{ filters.q if filters else '' }}">
+    <select class="form-select form-select-sm" name="status">
+      {% set st = filters.status if filters else '' %}
+      <option value="">Все статусы</option>
+      {% for code, label in status_choices %}
+      <option value="{{ code }}" {% if st==code %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    {% if partners %}
+    {% set pid = filters.partner_id if filters else None %}
+    <select class="form-select form-select-sm" name="partner_id">
+      <option value="all">Все партнёры</option>
+      <option value="0" {% if pid == 0 %}selected{% endif %}>Без партнёра</option>
+      {% for p in partners %}
+      <option value="{{ p.id }}" {% if pid == p.id %}selected{% endif %}>{{ p.full_name or p.name }}</option>
+      {% endfor %}
+    </select>
+    {% endif %}
+    <button class="btn btn-outline-secondary btn-sm" type="submit">Фильтр</button>
+  </form>
+  <div class="d-flex gap-2">
+    <a class="btn btn-primary" href="/orders/new">Добавить заказ</a>
+  </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Клиент</th>
+                        {% if not is_partner_user %}<th>Партнёр</th>{% endif %}
+                        <th>Статус</th>
+                        <th>Сумма</th>
+                        <th>Дата</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td><a href="/orders/{{ order.id }}">{{ order.id }}</a></td>
+                        <td>{{ order.client.name if order.client else '-' }}</td>
+                        {% if not is_partner_user %}<td>{{ order.partner.full_name if order.partner else '-' }}</td>{% endif %}
+                        <td>{{ status_labels.get(order.status, order.status) }}</td>
+                        <td>{{ order.total_amount }}</td>
+                        <td>{{ order.created_at.strftime('%d.%m.%Y') if order.created_at else '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if orders|length == 0 %}
+                    <tr><td colspan="{% if is_partner_user %}5{% else %}6{% endif %}" class="text-center text-muted">Нет доступных заказов</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

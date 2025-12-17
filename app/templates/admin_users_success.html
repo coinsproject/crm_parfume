@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+
+{% block title %}Пользователь создан - Parfume CRM{% endblock %}
+
+{% block page_title %}Пользователь создан{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Пользователь успешно создан</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success" role="alert">
+                        Пользователь <strong>{{ username }}</strong>{% if full_name %} ({{ full_name }}){% endif %} успешно добавлен.
+                    </div>
+                    
+                    {% if temp_password %}
+                    <div class="mb-3">
+                        <h5>Временный пароль:</h5>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="tempPassword" value="{{ temp_password }}" readonly>
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility()">Показать</button>
+                            <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard()">Скопировать</button>
+                        </div>
+                        <div class="form-text">
+                            Передайте эти данные пользователю. При первом входе он сможет сменить пароль.
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <a href="/settings/users" class="btn btn-primary">К списку пользователей</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePasswordVisibility() {
+    const passwordField = document.getElementById('tempPassword');
+    if (passwordField.type === 'password') {
+        passwordField.type = 'text';
+    } else {
+        passwordField.type = 'password';
+    }
+}
+
+function copyToClipboard() {
+    const passwordField = document.getElementById('tempPassword');
+    passwordField.select();
+    document.execCommand('copy');
+    const originalText = event.target.textContent;
+    event.target.textContent = 'Скопировано!';
+    setTimeout(() => {
+        event.target.textContent = originalText;
+    }, 2000);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,147 @@
+{% extends "layout.html" %}
+
+{% block title %}2FA выключена - Parfume CRM{% endblock %}
+
+{% block content %}
+<div class="dashboard-layout">
+    {% include "partials/sidebar.html" %}
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Topbar -->
+        <header class="topbar">
+            <div class="container-fluid">
+                <div class="topbar-content">
+                    <h1 class="topbar-title">Настройки безопасности</h1>
+                    <div class="topbar-actions">
+                        <div class="search-form">
+                            <input type="text" class="form-control" placeholder="Поиск...">
+                        </div>
+                        <div class="user-profile">
+                            <div class="user-avatar">{{ current_user.username[0:2].upper() }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 2FA Disabled Content -->
+        <div class="container-fluid">
+            <div class="d-flex gap-2 mb-3">
+                <a href="/settings/security" class="btn btn-outline-secondary">← К безопасности</a>
+                <a href="/dashboard" class="btn btn-outline-secondary">На главную</a>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Двухфакторная аутентификация</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info" role="alert">
+                                <i class="fas fa-info-circle"></i> Двухфакторная аутентификация отключена
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h4>Включение двухфакторной аутентификации</h4>
+                                    <p>Защитите свою учётную запись с помощью двухфакторной аутентификации (2FA).</p>
+                                    <p>После включения вам потребуется вводить код из приложения-аутентификатора при каждом входе в систему.</p>
+                                    
+                                    <h5>Что вам понадобится:</h5>
+                                    <ul>
+                                        <li>Смартфон с доступом к камере</li>
+                                        <li>Приложение-аутентификатор (Google Authenticator, Authy, Microsoft Authenticator или другое)</li>
+                                    </ul>
+                                    
+                                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#setup2FAModal">
+                                        Включить 2FA
+                                    </button>
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <h5>Преимущества 2FA</h5>
+                                    <ul>
+                                        <li>Дополнительный уровень безопасности</li>
+                                        <li>Защита от несанкционированного доступа</li>
+                                        <li>Снижение риска взлома аккаунта</li>
+                                        <li>Резервные коды на случай потери устройства</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        
+        <!-- Modal for 2FA Setup -->
+        <div class="modal fade" id="setup2FAModal" tabindex="-1" aria-labelledby="setup2FAModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="setup2FAModalLabel">Настройка двухфакторной аутентификации</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="setup-steps">
+                            <div class="step active" id="step1">
+                                <h5>Шаг 1: Установите приложение-аутентификатор</h5>
+                                <p>Установите одно из следующих приложений на ваш телефон:</p>
+                                <ul>
+                                    <li>Google Authenticator (iOS/Android)</li>
+                                    <li>Microsoft Authenticator (iOS/Android)</li>
+                                    <li>Authy (iOS/Android)</li>
+                                </ul>
+                                <button class="btn btn-primary" onclick="showStep(2)">Продолжить</button>
+                            </div>
+                            
+                            <div class="step" id="step2" style="display: none;">
+                                <h5>Шаг 2: Отсканируйте QR-код</h5>
+                                <p>Откройте приложение-аутентификатор и отсканируйте QR-код ниже:</p>
+                                <div class="qr-container text-center">
+                                    <img src="data:image/png;base64,{{ qr_code_data }}" alt="QR Code" class="qr-image">
+                                </div>
+                                <p>Или вручную введите ключ: <strong>{{ totp_secret }}</strong></p>
+                                <button class="btn btn-secondary" onclick="showStep(1)">Назад</button>
+                                <button class="btn btn-primary" onclick="showStep(3)">Продолжить</button>
+                            </div>
+                            
+                            <div class="step" id="step3" style="display: none;">
+                                <h5>Шаг 3: Подтвердите код</h5>
+                                <p>Введите 6-значный код из приложения-аутентификатора:</p>
+                                <form method="post" action="/settings/2fa/enable">
+                                    <div class="mb-3">
+                                        <input type="text" class="form-control" name="code" placeholder="000000" maxlength="6" required>
+                                    </div>
+                                    <button type="button" class="btn btn-secondary" onclick="showStep(2)">Назад</button>
+                                    <button type="submit" class="btn btn-success">Включить 2FA</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        
+        <script>
+        function showStep(stepNumber) {
+            // Скрываем все шаги
+            document.querySelectorAll('.step').forEach((step, index) => {
+                step.style.display = 'none';
+            });
+            
+            // Показываем нужный шаг
+            document.getElementById(`step${stepNumber}`).style.display = 'block';
+            
+            // Обновляем активный класс для индикатора прогресса
+            document.querySelectorAll('.step').forEach((step, index) => {
+                if (index + 1 === stepNumber) {
+                    step.classList.add('active');
+                } else {
+                    step.classList.remove('active');
+                }
+            });
+        }
+        </script>
+    </main>
+</div>
+{% endblock %}

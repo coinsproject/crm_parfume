@@ -1,0 +1,306 @@
+{% extends "layout.html" %}
+{% block title %}{% if order %}Редактирование заказа #{{ order.id }}{% else %}Новый заказ{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">{% if order %}Редактирование заказа #{{ order.id }}{% else %}Новый заказ{% endif %}</h2>
+  </div>
+
+  <form method="post" action="{% if order %}/orders/{{ order.id }}/edit{% else %}/orders/{% endif %}">
+    <div class="row mb-3">
+      <div class="col-md-4">
+        <label class="form-label">Клиент</label>
+        <select class="form-select" name="client_id" required>
+          {% for c in clients %}
+          <option value="{{ c.id }}" {% if order and order.client_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-4">
+        {% if is_partner_user %}
+          <label class="form-label">Профиль</label>
+          <input type="hidden" name="partner_id" value="{{ fixed_partner.id if fixed_partner else '' }}">
+          <input type="text" class="form-control" value="{{ fixed_partner.full_name or fixed_partner.name if fixed_partner else '' }}" disabled>
+        {% else %}
+          <label class="form-label">Партнёр</label>
+          <select class="form-select" name="partner_id">
+            <option value="">-</option>
+            {% for p in partners %}
+            <option value="{{ p.id }}" {% if order and order.partner_id == p.id %}selected{% endif %}>{{ p.full_name or p.name }}</option>
+            {% endfor %}
+          </select>
+        {% endif %}
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label">Статус</label>
+        <select class="form-select" name="status_value">
+          {% set current_status = order.status if order else 'NEW' %}
+          {% for code, label in status_choices %}
+          <option value="{{ code }}" {% if current_status == code %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered align-middle" id="items-table">
+        <thead>
+          <tr>
+            <th style="width: 34%;">Товар (из прайса)</th>
+            <th style="width: 8%;">Кол-во</th>
+            {% if can_view_client_price %}<th style="width: 12%;">Цена для клиента</th>{% endif %}
+            {% if can_view_client_price %}<th style="width: 12%;">Сумма клиента</th>{% endif %}
+            {% if can_view_cost %}<th style="width: 12%;">Себестоимость</th>{% endif %}
+            {% if can_view_margin %}<th style="width: 12%;">Маржа</th>{% endif %}
+            <th style="width: 10%;">Скидка</th>
+            <th style="width: 6%;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set items = order.items if order else [] %}
+          {% if items|length == 0 %}
+            {% set items = [None] %}
+          {% endif %}
+          {% for it in items %}
+          <tr class="item-row">
+            <td>
+              <div class="d-flex gap-2">
+                <input type="hidden" name="price_product_ids" value="{{ it.price_product_id if it else selected_price_product_id or '' }}">
+                <input type="text" class="form-control price-label" value="{% if it and it.price_product %}{{ it.price_product.external_article }} - {{ it.price_product.brand }} {{ it.price_product.product_name or '' }}{% endif %}" placeholder="Выберите позицию" readonly>
+                <button type="button" class="btn btn-outline-secondary btn-sm choose-price-product" data-bs-toggle="modal" data-bs-target="#priceModal">Выбрать</button>
+              </div>
+            </td>
+            <td><input type="number" min="1" class="form-control qty" name="quantities" value="{{ it.qty if it else 1 }}"></td>
+            {% if can_view_client_price %}
+            <td><input type="text" class="form-control unit-client-price" value="{{ it.client_price if it else '' }}" readonly></td>
+            <td><input type="text" class="form-control line-client-amount" value="{{ it.line_client_amount if it else '' }}" readonly></td>
+            {% endif %}
+            {% if can_view_cost %}
+            <td><input type="text" class="form-control" value="{{ it.cost_for_owner if it else '' }}" readonly></td>
+            {% endif %}
+            {% if can_view_margin %}
+            <td><input type="text" class="form-control" value="{{ it.line_margin if it else '' }}" readonly></td>
+            {% endif %}
+            <td><input type="number" step="0.01" min="0" class="form-control discount" name="discounts" value="{{ it.discount if it else 0 }}"></td>
+            <td><button type="button" class="btn btn-outline-danger btn-sm remove-row">✕</button></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="d-flex gap-2 mb-3">
+      <button type="button" class="btn btn-outline-primary btn-sm" id="add-from-price" data-bs-toggle="modal" data-bs-target="#priceModal">Добавить из прайса</button>
+    </div>
+
+    <div class="text-end">
+      <a href="/orders" class="btn btn-outline-secondary">Отмена</a>
+      <button type="submit" class="btn btn-primary">Сохранить</button>
+    </div>
+  </form>
+</div>
+
+<template id="item-row-template">
+  <tr class="item-row">
+    <td>
+      <div class="d-flex gap-2">
+        <input type="hidden" name="price_product_ids" value="">
+        <input type="text" class="form-control price-label" value="" placeholder="Выберите позицию" readonly>
+        <button type="button" class="btn btn-outline-secondary btn-sm choose-price-product" data-bs-toggle="modal" data-bs-target="#priceModal">Выбрать</button>
+      </div>
+    </td>
+    <td><input type="number" min="1" class="form-control qty" name="quantities" value="1"></td>
+    {% if can_view_client_price %}<td><input type="text" class="form-control unit-client-price" value="" readonly></td>{% endif %}
+    {% if can_view_client_price %}<td><input type="text" class="form-control line-client-amount" value="" readonly></td>{% endif %}
+    {% if can_view_cost %}<td><input type="text" class="form-control" value="" readonly></td>{% endif %}
+    {% if can_view_margin %}<td><input type="text" class="form-control" value="" readonly></td>{% endif %}
+    <td><input type="number" step="0.01" min="0" class="form-control discount" name="discounts" value="0"></td>
+    <td><button type="button" class="btn btn-outline-danger btn-sm remove-row">✕</button></td>
+  </tr>
+</template>
+
+<div class="modal fade" id="priceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Поиск в прайсе</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 align-items-end mb-3">
+          <div class="col-md-6">
+            <label class="form-label">Поиск</label>
+            <input type="text" class="form-control" id="price-search-q" placeholder="byredo помада 3 г">
+          </div>
+          <div class="col-md-2">
+            <button type="button" class="btn btn-primary w-100" id="price-search-btn">Найти</button>
+          </div>
+        </div>
+        <div class="table-responsive" style="max-height: 420px;">
+          <table class="table table-sm align-middle" id="price-search-results">
+            <thead class="table-light">
+              <tr>
+                <th>Артикул</th>
+                <th>Название</th>
+                <th>Бренд</th>
+                <th>Объем</th>
+                {% if can_view_client_price or can_view_cost %}<th>Цена</th>{% endif %}
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="6" class="text-muted">Введите запрос и нажмите &lt;Найти&gt;</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const tbody = document.querySelector("#items-table tbody");
+    const tpl = document.getElementById("item-row-template");
+    const addFromPriceBtn = document.getElementById("add-from-price");
+    const modalEl = document.getElementById("priceModal");
+
+    const searchBtn = document.getElementById("price-search-btn");
+    const searchInput = document.getElementById("price-search-q");
+    const resultsBody = document.querySelector("#price-search-results tbody");
+
+    let activeRow = null;
+
+    function toNum(v) {
+      const n = Number(String(v ?? "").replace(",", "."));
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function recalcRow(row) {
+      if (!row) return;
+      const unit = toNum(row.querySelector(".unit-client-price")?.value);
+      const qty = Math.max(1, toNum(row.querySelector(".qty")?.value || 1));
+      const discount = Math.max(0, toNum(row.querySelector(".discount")?.value || 0));
+      const sum = Math.max(0, unit * qty - discount);
+      const sumEl = row.querySelector(".line-client-amount");
+      if (sumEl) sumEl.value = sum ? sum.toFixed(2) : "";
+    }
+
+    tbody.addEventListener("input", (e) => {
+      if (e.target.classList.contains("qty") || e.target.classList.contains("discount")) {
+        recalcRow(e.target.closest(".item-row"));
+      }
+    });
+
+    tbody.addEventListener("click", (e) => {
+      if (e.target.classList.contains("remove-row")) {
+        const row = e.target.closest(".item-row");
+        if (row && tbody.children.length > 1) {
+          row.remove();
+        }
+      }
+      if (e.target.classList.contains("choose-price-product")) {
+        activeRow = e.target.closest(".item-row");
+      }
+    });
+
+    addFromPriceBtn?.addEventListener("click", () => {
+      activeRow = null;
+    });
+
+    async function runPriceSearch() {
+      const q = searchInput.value || "";
+      resultsBody.innerHTML = '<tr><td colspan="6">Поиск...</td></tr>';
+      try {
+        const resp = await fetch(`/orders/api/price_search?q=${encodeURIComponent(q)}&page_size=10`);
+        const data = await resp.json();
+        if (!Array.isArray(data) || data.length === 0) {
+          resultsBody.innerHTML = '<tr><td colspan="6" class="text-muted">Ничего не найдено</td></tr>';
+          return;
+        }
+        const includePrice = {% if can_view_client_price or can_view_cost %}true{% else %}false{% endif %};
+        resultsBody.innerHTML = data.map(item => {
+          const priceCell = includePrice ? `<td>${item.base_price ?? ""}</td>` : "";
+          return `<tr>
+            <td>${item.external_article || ""}</td>
+            <td>${item.product_name || ""}</td>
+            <td>${item.brand || ""}</td>
+            <td>${item.volume_value || ""} ${item.volume_unit || ""}</td>
+            ${priceCell}
+            <td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary select-price-product" data-id="${item.id}" data-label="${item.external_article || ""} - ${item.brand || ""} ${item.product_name || ""}" data-price="${item.base_price ?? ""}">Выбрать</button></td>
+          </tr>`;
+        }).join("");
+      } catch (err) {
+        resultsBody.innerHTML = '<tr><td colspan="6" class="text-danger">Ошибка поиска</td></tr>';
+      }
+    }
+
+    searchBtn?.addEventListener("click", runPriceSearch);
+    searchInput?.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        runPriceSearch();
+      }
+    });
+
+    resultsBody?.addEventListener("click", (e) => {
+      if (!e.target.classList.contains("select-price-product")) return;
+
+      const id = e.target.getAttribute("data-id");
+      const label = e.target.getAttribute("data-label");
+      const price = e.target.getAttribute("data-price");
+
+      let row = activeRow;
+      if (!row) {
+        const clone = tpl.content.cloneNode(true);
+        tbody.appendChild(clone);
+        row = tbody.querySelector("tr:last-child");
+      }
+
+      const hiddenInput = row.querySelector('input[name="price_product_ids"]');
+      const labelInput = row.querySelector(".price-label");
+      const unitInput = row.querySelector(".unit-client-price");
+      if (hiddenInput) hiddenInput.value = id || "";
+      if (labelInput) labelInput.value = label || "";
+      if (unitInput && price !== null && price !== undefined && price !== "") {
+        unitInput.value = String(price);
+      }
+      recalcRow(row);
+
+      activeRow = null;
+      const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      modal.hide();
+    });
+
+    async function hydratePrefilledRow() {
+      const prefilled = tbody.querySelector('tr.item-row input[name="price_product_ids"]');
+      if (!prefilled) return;
+      const id = prefilled.value;
+      if (!id) return;
+
+      const row = prefilled.closest("tr.item-row");
+      const labelInput = row.querySelector(".price-label");
+      const unitInput = row.querySelector(".unit-client-price");
+
+      if (labelInput && labelInput.value) return;
+
+      try {
+        const resp = await fetch(`/orders/api/price_product/${encodeURIComponent(id)}`);
+        if (!resp.ok) return;
+        const item = await resp.json();
+        if (labelInput) labelInput.value = `${item.external_article || ""} - ${item.brand || ""} ${item.product_name || ""}`.trim();
+        if (unitInput && item.base_price !== null && item.base_price !== undefined) unitInput.value = String(item.base_price);
+        recalcRow(row);
+      } catch (e) {}
+    }
+
+    hydratePrefilledRow();
+  });
+</script>
+{% endblock %}

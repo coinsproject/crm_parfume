@@ -1,0 +1,128 @@
+{% extends "layout.html" %}
+
+{% block title %}2FA включена - Parfume CRM{% endblock %}
+
+{% block content %}
+<div class="dashboard-layout">
+    {% include "partials/sidebar.html" %}
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Topbar -->
+        <header class="topbar">
+            <div class="container-fluid">
+                <div class="topbar-content">
+                    <h1 class="topbar-title">Настройки безопасности</h1>
+                    <div class="topbar-actions">
+                        <div class="search-form">
+                            <input type="text" class="form-control" placeholder="Поиск...">
+                        </div>
+                        <div class="user-profile">
+                            <div class="user-avatar">{{ current_user.username[0:2].upper() }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 2FA Enabled Content -->
+        <div class="container-fluid">
+            <div class="d-flex gap-2 mb-3">
+                <a href="/settings/security" class="btn btn-outline-secondary">← К безопасности</a>
+                <a href="/dashboard" class="btn btn-outline-secondary">На главную</a>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Двухфакторная аутентификация</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-success" role="alert">
+                                <i class="fas fa-check-circle"></i> Двухфакторная аутентификация включена
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h4>Состояние 2FA</h4>
+                                    <p>Ваша учётная запись защищена с помощью двухфакторной аутентификации.</p>
+                                    <p>При следующем входе в систему вам потребуется ввести код из приложения-аутентификатора.</p>
+                                    
+                                    <h5>Резервные коды</h5>
+                                    <p>Если вы потеряете доступ к своему устройству, вы можете использовать один из резервных кодов для входа.</p>
+                                    <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#backupCodes" aria-expanded="false" aria-controls="backupCodes">
+                                        Показать резервные коды
+                                    </button>
+                                    
+                                    <div class="collapse mt-3" id="backupCodes">
+                                        <div class="card card-body">
+                                            <div class="backup-codes-grid">
+                                                {% for code in backup_codes %}
+                                                <div class="backup-code">{{ code }}</div>
+                                                {% endfor %}
+                                            </div>
+                                            <button class="btn btn-sm btn-warning mt-3">Сгенерировать новые коды</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <h4>Управление 2FA</h4>
+                                    <form id="disable2FAForm" method="post" onsubmit="return confirm('Вы уверены, что хотите отключить двухфакторную аутентификацию?')">
+                                        <div class="mb-3">
+                                            <label for="password" class="form-label">Для отключения введите ваш пароль</label>
+                                            <input type="password" class="form-control" id="password" name="password" required>
+                                        </div>
+                                        <button type="submit" class="btn btn-danger">Отключить 2FA</button>
+                                    </form>
+                                    <script>
+                                        document.getElementById('disable2FAForm').addEventListener('submit', async function(e) {
+                                            e.preventDefault();
+                                            
+                                            const formData = new FormData(this);
+                                            const password = formData.get('password');
+                                            
+                                            try {
+                                                const response = await fetch('/settings/2fa/disable', {
+                                                    method: 'POST',
+                                                    headers: {
+                                                        'Content-Type': 'application/x-www-form-urlencoded',
+                                                    },
+                                                    body: `password=${encodeURIComponent(password)}`
+                                                });
+                                                
+                                                if (response.ok) {
+                                                    const data = await response.json();
+                                                    alert(data.message);
+                                                    // Перенаправляем на страницу настроек безопасности
+                                                    window.location.href = '/settings/security';
+                                                } else {
+                                                    const errorData = await response.json();
+                                                    alert('Ошибка: ' + (errorData.detail || 'Неизвестная ошибка'));
+                                                }
+                                            } catch (error) {
+                                                console.error('Error:', error);
+                                                alert('Ошибка соединения с сервером');
+                                            }
+                                        });
+                                    </script>
+                                    
+                                    <hr>
+                                    
+                                    <h5>Как работает 2FA</h5>
+                                    <ul>
+                                        <li>При входе в систему после ввода логина и пароля вам будет предложено ввести код из приложения</li>
+                                        <li>Код меняется каждые 30 секунд</li>
+                                        <li>Один резервный код можно использовать только один раз</li>
+                                        <li>Если вы потеряете телефон, используйте резервный код для входа</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

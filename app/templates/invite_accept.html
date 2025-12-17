@@ -1,0 +1,111 @@
+{% extends "layout.html" %}
+
+{% block title %}Принятие приглашения - Parfume CRM{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-logo">
+            <h2>Parfume CRM</h2>
+        </div>
+        <h3 class="auth-title">Заполните данные</h3>
+        <p class="auth-subtitle">Вы приглашены по адресу: {{ email or '—' }}</p>
+        
+        <form class="auth-form" id="acceptInvitationForm">
+            <div class="mb-3">
+                <label for="username" class="form-label">Логин</label>
+                <input type="text" class="form-control auth-input" id="username" name="username" required>
+            </div>
+            
+            <div class="mb-3">
+                <label for="full_name" class="form-label">Имя</label>
+                <input type="text" class="form-control auth-input" id="full_name" name="full_name" placeholder="Опционально">
+            </div>
+
+            <div class="mb-3">
+                <label for="email" class="form-label">Email</label>
+                <input type="email" class="form-control auth-input" id="email" name="email" value="{{ email }}" placeholder="Можно изменить">
+            </div>
+            
+            <div class="mb-3">
+                <label for="password" class="form-label">Пароль</label>
+                <input type="password" class="form-control auth-input" id="password" name="password" required>
+            </div>
+            
+            <div class="mb-3">
+                <label for="passwordConfirm" class="form-label">Подтверждение пароля</label>
+                <input type="password" class="form-control auth-input" id="passwordConfirm" name="password_confirm" required>
+            </div>
+            
+            <div id="errorMessage" class="text-danger mt-2" style="display: none;"></div>
+            
+            <button type="submit" class="btn btn-primary auth-button w-100">Создать аккаунт</button>
+        </form>
+        
+        <div class="auth-2fa-hint">
+            <p>После проверки администратором вы получите доступ к системе.</p>
+        </div>
+        
+        <div class="auth-footer">
+            <a href="/auth/login" class="auth-link">Уже есть учётка? Войти</a>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('acceptInvitationForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const password = document.getElementById('password').value;
+    const passwordConfirm = document.getElementById('passwordConfirm').value;
+    const errorMessage = document.getElementById('errorMessage');
+    errorMessage.style.display = 'none';
+
+    if (password !== passwordConfirm) {
+        errorMessage.textContent = 'Пароли не совпадают';
+        errorMessage.style.display = 'block';
+        return;
+    }
+    if (password.length < 6) {
+        errorMessage.textContent = 'Пароль должен быть не короче 6 символов';
+        errorMessage.style.display = 'block';
+        return;
+    }
+
+    const formData = new FormData(this);
+    const token = window.location.pathname.split('/').pop();
+
+    try {
+        const response = await fetch(`/invite/${token}`, {
+            method: 'POST',
+            body: new URLSearchParams({
+                username: formData.get('username'),
+                password: formData.get('password'),
+                password_confirm: formData.get('password_confirm'),
+                full_name: formData.get('full_name') || '',
+                email: formData.get('email') || ''
+            })
+        });
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            document.getElementById('acceptInvitationForm').innerHTML = `
+                <div class="alert alert-success">
+                    <h4>Данные сохранены!</h4>
+                    <p>Учетная запись создана и ожидает активации администратором.</p>
+                </div>
+                <div class="mt-3">
+                    <a href="/auth/login" class="btn btn-primary w-100">Вернуться ко входу</a>
+                </div>
+            `;
+        } else {
+            errorMessage.textContent = data.detail || 'Ошибка при создании профиля';
+            errorMessage.style.display = 'block';
+        }
+    } catch (error) {
+        errorMessage.textContent = 'Ошибка выполнения запроса';
+        errorMessage.style.display = 'block';
+        console.error('Accept invitation error:', error);
+    }
+});
+</script>
+{% endblock %}

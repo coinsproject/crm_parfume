@@ -1,0 +1,106 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ item.display_name or (item.brand ~ ' ' ~ item.name) }}{% endblock %}
+{% block page_title %}{{ item.display_name or item.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h4 mb-1">
+      {{ item.display_name or (item.brand ~ ' - ' ~ item.name) }}
+    </h1>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/catalog" class="btn btn-outline-secondary">&larr; К каталогу</a>
+    <a href="/dashboard" class="btn btn-outline-secondary">На главную</a>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-4 mb-3">
+    <div class="card h-100">
+      {% if item.image_url %}
+      <img src="{{ item.image_url }}" class="card-img-top" alt="{{ item.name }}">
+      {% else %}
+      <div class="card-img-top d-flex align-items-center justify-content-center"
+           style="height: 180px; background: #f3f4f6; font-size: 0.9rem; color: #6c757d;">
+        нет изображения
+      </div>
+      {% endif %}
+      <div class="card-body">
+        <div class="mb-2">
+          {% if item.in_stock %}
+            <span class="badge bg-success">В наличии</span>
+          {% else %}
+            <span class="badge bg-secondary">Нет в наличии</span>
+          {% endif %}
+        </div>
+        {% if item.type %}
+        <div class="small text-muted mb-1">Тип: {{ item.type }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-8 mb-3">
+    <div class="card h-100">
+      <div class="card-body d-flex flex-column">
+        {% if item.description_full %}
+          <p class="mb-3">{{ item.description_full }}</p>
+        {% elif item.description_short %}
+          <p class="mb-3">{{ item.description_short }}</p>
+        {% else %}
+          <p class="text-muted">Описание для этого товара пока не заполнено.</p>
+        {% endif %}
+
+        <h6 class="mt-3">Доступные объёмы</h6>
+        {% if variants %}
+          <div class="list-group">
+            {% for v in variants %}
+              <div class="list-group-item d-flex align-items-center justify-content-between">
+                <div>
+                  <div class="fw-semibold">{{ volume_label(v) }}</div>
+                  <div class="small text-muted">{% if v.is_tester %}Тестер{% else %}Обычный{% endif %}</div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                  {% if v.in_stock %}
+                    <span class="badge bg-success">В наличии</span>
+                  {% else %}
+                    <span class="badge bg-secondary">Нет в наличии</span>
+                  {% endif %}
+                  <button class="btn btn-sm btn-primary" data-variant="{{ v.id }}" onclick="requestPrice(this)">
+                    Запросить стоимость
+                  </button>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="text-muted">Варианты объёмов не найдены.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function requestPrice(btn) {
+  const vid = btn.getAttribute('data-variant');
+  btn.disabled = true;
+  try {
+    const resp = await fetch('/api/price-request', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({variantId: vid})
+    });
+    if (!resp.ok) throw new Error('Ошибка запроса');
+    const data = await resp.json();
+    alert(data.message || 'Запрос зарегистрирован');
+  } catch (e) {
+    alert('Не удалось отправить запрос стоимости');
+  } finally {
+    btn.disabled = false;
+  }
+}
+</script>
+{% endblock %}

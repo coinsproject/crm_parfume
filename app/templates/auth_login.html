@@ -1,0 +1,65 @@
+{% extends "layout.html" %}
+
+{% block title %}Вход в систему - Parfume CRM{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-logo">
+            <h2>Parfume CRM</h2>
+        </div>
+        <h3 class="auth-title">Добро пожаловать</h3>
+        <p class="auth-subtitle">Войдите в свою учетную запись</p>
+        
+        <form class="auth-form" id="loginForm">
+            <div class="mb-3">
+                <label for="username" class="form-label">Имя пользователя</label>
+                <input type="text" class="form-control auth-input" id="username" name="username" required>
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">Пароль</label>
+                <input type="password" class="form-control auth-input" id="password" name="password" required>
+            </div>
+            <button type="submit" class="btn btn-primary auth-button w-100">Войти</button>
+        </form>
+        
+        <div class="auth-footer">
+            <a href="#" class="auth-link">Забыли пароль?</a>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(document.getElementById('loginForm'));
+    
+    try {
+        const response = await fetch('/auth/login', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.requires_2fa) {
+                // Если требуется 2FA, перенаправляем на страницу ввода кода
+                // Временный токен теперь хранится в cookie, поэтому просто перенаправляем
+                window.location.href = '/auth/2fa';
+            } else {
+                // При успешном входе без 2FA будет установлен токен в cookie
+                // и произойдет перенаправление на дашборд
+                window.location.href = '/dashboard';
+            }
+        } else {
+            const errorData = await response.json();
+            alert('Ошибка входа: ' + (errorData.detail || 'Неизвестная ошибка'));
+        }
+    } catch (error) {
+        alert('Ошибка соединения с сервером');
+        console.error('Login error:', error);
+    }
+});
+</script>
+{% endblock %}

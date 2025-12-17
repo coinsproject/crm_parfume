@@ -1,0 +1,110 @@
+{% extends "layout.html" %}
+
+{% block title %}Редактирование клиента - Parfume CRM{% endblock %}
+{% block page_title %}Редактирование клиента{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Редактирование клиента</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="/clients/{{ client.id }}/edit">
+                        <div class="mb-3">
+                            <label class="form-label" for="full_name">ФИО клиента *</label>
+                            <input type="text" class="form-control {% if errors.full_name %}is-invalid{% endif %}" id="full_name" name="full_name" placeholder="Петров Пётр Петрович" value="{{ (form.full_name if form and form.full_name is defined else None) or client.name }}" required>
+                            {% if errors.full_name %}<div class="invalid-feedback">{{ errors.full_name }}</div>{% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="phone">Телефон *</label>
+                            <input type="text" class="form-control phone-mask {% if errors.phone %}is-invalid{% endif %}" id="phone" name="phone" placeholder="+7 (___) ___-__-__" value="{{ (form.phone if form and form.phone is defined else None) or client.phone or '' }}" required>
+                            {% if errors.phone %}<div class="invalid-feedback">{{ errors.phone }}</div>{% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="email">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" value="{{ (form.email if form and form.email is defined else None) or client.email or '' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="city">Город / населённый пункт</label>
+                            <input type="text" class="form-control" id="city" name="city" value="{{ (form.city if form and form.city is defined else None) or client.city or '' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="notes">Примечание</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3">{{ (form.notes if form and form.notes is defined else None) or client.notes or '' }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="partner">Партнёр</label>
+                            <select class="form-select {% if errors.partner_id %}is-invalid{% endif %}" id="partner" name="partner_id">
+                                <option value="">Не привязывать</option>
+                                {% for partner in partners %}
+                                <option value="{{ partner.id }}" {% if (form.partner_id if form else client.partner_id) == partner.id %}selected{% endif %}>{{ partner.full_name or partner.name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if errors.partner_id %}<div class="invalid-feedback">{{ errors.partner_id }}</div>{% endif %}
+                        </div>
+                        {% if can_set_partner_markup %}
+                        <div class="mb-3">
+                            <label class="form-label" for="partner_markup_percent">Наценка партнёра для этого клиента, %</label>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                class="form-control {% if errors.partner_markup_percent %}is-invalid{% endif %}"
+                                id="partner_markup_percent"
+                                name="partner_markup_percent"
+                                value="{{ (form.partner_markup_percent if form and form.partner_markup_percent is defined else None) or partner_markup_percent or '' }}"
+                            >
+                            {% if max_partner_markup_percent is not none %}
+                                <div class="form-text">Максимум: {{ max_partner_markup_percent }}%</div>
+                            {% endif %}
+                            {% if errors.partner_markup_percent %}<div class="invalid-feedback">{{ errors.partner_markup_percent }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+                        <div class="mb-3 form-check">
+                            <input class="form-check-input" type="checkbox" id="can_access_catalog" name="can_access_catalog" {% if (form.can_access_catalog if form else client.can_access_catalog) %}checked{% endif %}>
+                            <label class="form-check-label" for="can_access_catalog">Клиент имеет доступ к каталогу</label>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Сохранить</button>
+                            <a href="/clients/{{ client.id }}" class="btn btn-outline-secondary">Отмена</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const phoneInputs = document.querySelectorAll(".phone-mask");
+    const formatPhone = (val) => {
+        const digits = val.replace(/\D/g, "");
+        const clean = digits.startsWith("7") ? digits.slice(1) : digits.startsWith("8") ? digits.slice(1) : digits;
+        const part1 = clean.slice(0,3);
+        const part2 = clean.slice(3,6);
+        const part3 = clean.slice(6,8);
+        const part4 = clean.slice(8,10);
+        let out = "+7";
+        if (part1) out += ` (${part1}`;
+        if (part1.length === 3) out += `)`;
+        if (part2) out += ` ${part2}`;
+        if (part3) out += `-${part3}`;
+        if (part4) out += `-${part4}`;
+        return out;
+    };
+    phoneInputs.forEach(inp => {
+        const applyMask = () => {
+            const formatted = formatPhone(inp.value);
+            inp.value = formatted.trim();
+            inp.setSelectionRange(formatted.length, formatted.length);
+        };
+        inp.addEventListener("input", applyMask);
+        if (inp.value) applyMask();
+    });
+});
+</script>
+{% endblock %}

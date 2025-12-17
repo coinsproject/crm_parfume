@@ -1,0 +1,24 @@
+{% extends "catalog_client_layout.html" %}
+
+{% block title %}{{ fragrance.name }} - {{ fragrance.brand }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <div class="d-flex flex-column flex-md-row gap-3">
+            {% if fragrance.image_url %}
+            <div class="flex-shrink-0" style="max-width:200px;">
+                <img src="{{ fragrance.image_url }}" class="img-fluid rounded" alt="{{ fragrance.name }}">
+            </div>
+            {% endif %}
+            <div class="flex-grow-1">
+                <h3>{{ fragrance.name }}</h3>
+                <p class="text-muted">{{ fragrance.brand }}</p>
+                {% if fragrance.year %}<p><strong>Год:</strong> {{ fragrance.year }}</p>{% endif %}
+                {% if fragrance.gender %}<p><strong>Для кого:</strong> {{ fragrance.gender }}</p>{% endif %}
+                {% if fragrance.price %}<p><strong>Цена:</strong> {{ fragrance.price }}</p>{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,370 @@
+{% extends "layout.html" %}
+
+{% block title %}Настройки безопасности - Parfume CRM{% endblock %}
+
+{% block page_title %}Настройки безопасности{% endblock %}
+
+{% block content %}
+
+        <!-- Security Settings Content -->
+        <div class="container-fluid">
+            <div class="d-flex gap-2 mb-3">
+                <a href="/settings/security" class="btn btn-outline-secondary">← К безопасности</a>
+                <a href="/dashboard" class="btn btn-outline-secondary">На главную</a>
+            </div>
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h3 class="card-title">Двухфакторная аутентификация</h3>
+                        </div>
+                        <div class="card-body">
+                            {% if current_user.is_2fa_enabled %}
+                            <div class="alert alert-success" role="alert">
+                                <i class="fas fa-shield-alt"></i> Двухфакторная аутентификация включена
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h5>Ваши резервные коды</h5>
+                                    <p>Сохраните эти коды в надежном месте. Каждый код можно использовать только один раз.</p>
+                                    <div class="backup-codes-list">
+                                        {% for code in backup_codes %}
+                                        <span class="backup-code">{{ code }}</span>
+                                        {% endfor %}
+                                    </div>
+                                    <button class="btn btn-outline-warning mt-3" id="regenerateCodesBtn">Сгенерировать новые коды</button>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <h5>Отключить 2FA</h5>
+                                    <p>Для отключения двухфакторной аутентификации введите ваш пароль:</p>
+                                    <form id="disable2FAForm" method="post" action="/settings/2fa/disable">
+                                        <div class="mb-3">
+                                            <label for="passwordInput" class="form-label">Введите ваш пароль для подтверждения</label>
+                                            <input type="password" class="form-control" id="passwordInput" name="password" placeholder="Ваш пароль" required>
+                                        </div>
+                                        <button type="submit" class="btn btn-danger">Отключить 2FA</button>
+                                    </form>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info" role="alert">
+                                <i class="fas fa-info-circle"></i> Двухфакторная аутентификация отключена
+                            </div>
+                            
+                            <div class="setup-2fa-steps">
+                                <h4>Включить двухфакторную аутентификацию</h4>
+                                <ol>
+                                    <li>Установите приложение-аутентификатор (Google Authenticator, Authy, Microsoft Authenticator)</li>
+                                    <li>Отсканируйте QR-код ниже или введите ключ вручную</li>
+                                    <li>Введите 6-значный код из приложения и нажмите "Включить"</li>
+                                </ol>
+                                
+                                <div class="text-center mb-4">
+                                    <div id="qrCodeContainer" class="qr-placeholder">
+                                        <p>QR-код будет сгенерирован после нажатия "Начать настройку"</p>
+                                    </div>
+                                    {% if current_user.role.name == 'ADMIN' %}
+                                    <button class="btn btn-primary mt-3" id="startSetupBtn">Начать настройку 2FA</button>
+                                    {% else %}
+                                    <p class="text-muted mt-3">Настройка 2FA доступна только администраторам</p>
+                                    {% endif %}
+                                </div>
+                                <div id="verificationSection" style="display: none;">
+                                    <div class="mb-3">
+                                        <label for="verificationCode" class="form-label">Введите код из приложения</label>
+                                        <input type="text" class="form-control" id="verificationCode" placeholder="000000" maxlength="6">
+                                    </div>
+                                    <button class="btn btn-success" id="enable2FAbtn">Включить 2FA</button>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h3 class="card-title">Информация</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="security-tips">
+                                <h5>Советы по безопасности:</h5>
+                                <ul>
+                                    <li>Используйте надежные пароли</li>
+                                    <li>Не передавайте учетные данные третьим лицам</li>
+                                    <li>Храните резервные коды в безопасном месте</li>
+                                    <li>Регулярно обновляйте пароли</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if current_user.role.name == 'ADMIN' %}
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Управление</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="admin-actions">
+                                <a href="/settings/users" class="btn btn-primary w-100">Управление пользователями</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                </div>
+            </div>
+        </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Начать настройку 2FA
+    const startSetupBtn = document.getElementById('startSetupBtn');
+    if (startSetupBtn) {
+        startSetupBtn.addEventListener('click', async function() {
+            try {
+                const response = await fetch('/settings/2fa/setup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Показываем QR-код
+                    document.getElementById('qrCodeContainer').innerHTML =
+                        `<img src="${data.qr_data}" alt="QR Code" class="qr-image">`;
+                    
+                    // Показываем поле для ввода кода
+                    document.getElementById('verificationSection').style.display = 'block';
+                    
+                    // Сохраняем секрет для последующей проверки
+                    window.totpSecret = data.totp_uri;
+                } else {
+                    alert('Ошибка при настройке 2FA: ' + (data.detail || data.message || 'Неизвестная ошибка'));
+                }
+            } catch (error) {
+                console.error('Error setting up 2FA:', error);
+                alert('Ошибка соединения с сервером');
+            }
+        });
+    }
+    
+    // Включить 2FA
+    const enable2FAbtn = document.getElementById('enable2FAbtn');
+    if (enable2FAbtn) {
+        enable2FAbtn.addEventListener('click', async function() {
+            const code = document.getElementById('verificationCode').value;
+            
+            if (!window.totpSecret) {
+                alert('Сначала начните настройку 2FA');
+                return;
+            }
+            
+            try {
+                const formData = new FormData();
+                formData.append('code', code);
+                
+                const response = await fetch('/settings/2fa/enable', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    alert('Двухфакторная аутентификация успешно включена!');
+                    // Показываем резервные коды
+                    if (data.backup_codes) {
+                        const codesList = document.querySelector('.backup-codes-list');
+                        codesList.innerHTML = '';
+                        data.backup_codes.forEach(code => {
+                            const codeSpan = document.createElement('span');
+                            codeSpan.className = 'backup-code';
+                            codeSpan.textContent = code;
+                            codesList.appendChild(codeSpan);
+                        });
+                        
+                        // Обновляем состояние страницы
+                        const alertElement = document.querySelector('.alert');
+                        if (alertElement) {
+                            alertElement.className = 'alert alert-success';
+                            alertElement.innerHTML = '<i class="fas fa-shield-alt"></i> Двухфакторная аутентификация включена';
+                        }
+                        
+                        // Скрываем элементы настройки
+                        document.getElementById('verificationSection').style.display = 'none';
+                        const startSetupBtn = document.getElementById('startSetupBtn');
+                        if (startSetupBtn) startSetupBtn.style.display = 'none';
+                        
+                        // Если сервер вернул новый токен, обновляем его в cookie
+                        if (data.access_token) {
+                            document.cookie = `access_token=${data.access_token}; path=/; samesite=lax; httponly=false`;
+                        }
+                        
+                        // Перезагружаем страницу для обновления состояния
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    }
+                } else {
+                    let errorData = {};
+                    try {
+                        errorData = await response.json();
+                    } catch (e) {
+                        // Если ответ не в формате JSON, создаем объект с общей ошибкой
+                        errorData = { detail: 'Непредвиденная ошибка сервера' };
+                    }
+                    alert('Ошибка при включении 2FA: ' + (errorData.detail || errorData.message || 'Неверный код'));
+                }
+            } catch (error) {
+                console.error('Error enabling 2FA:', error);
+                alert('Ошибка соединения с сервером');
+            }
+        });
+    }
+    // Отключить 2FA
+    const disable2FAForm = document.getElementById('disable2FAForm');
+    if (disable2FAForm) {
+        disable2FAForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const password = document.getElementById('passwordInput') ? document.getElementById('passwordInput').value : '';
+            
+            try {
+                const formData = new FormData();
+                formData.append('password', password);
+                
+                const response = await fetch('/settings/2fa/disable', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('2FA успешно отключена');
+                    window.location.href = '/settings/security'; // Перезагружаем страницу
+                } else {
+                    alert('Ошибка при отключении 2FA: ' + (data.detail || 'Неизвестная ошибка'));
+                }
+            } catch (error) {
+                console.error('Error disabling 2FA:', error);
+                alert('Ошибка соединения с сервером');
+            }
+        });
+    }
+    
+    // Сгенерировать новые резервные коды
+    const regenerateCodesBtn = document.getElementById('regenerateCodesBtn');
+    if (regenerateCodesBtn) {
+        regenerateCodesBtn.addEventListener('click', async function() {
+            if (confirm('Вы уверены, что хотите сгенерировать новые резервные коды? Старые коды будут аннулированы.')) {
+                try {
+                    const response = await fetch('/settings/2fa/backup/regenerate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        alert('Новые резервные коды сгенерированы. Обязательно сохраните их в надежном месте.');
+                        // Обновляем список кодов
+                        const codesList = document.querySelector('.backup-codes-list');
+                        codesList.innerHTML = '';
+                        data.backup_codes.forEach(code => {
+                            const codeSpan = document.createElement('span');
+                            codeSpan.className = 'backup-code';
+                            codeSpan.textContent = code;
+                            codesList.appendChild(codeSpan);
+                        });
+                    } else {
+                        alert('Ошибка при генерации новых кодов: ' + (data.detail || 'Неизвестная ошибка'));
+                    }
+                } catch (error) {
+                    console.error('Error regenerating backup codes:', error);
+                    alert('Ошибка соединения с сервером');
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+
+{% block styles %}
+<style>
+.qr-image {
+    max-width: 200px;
+    max-height: 200px;
+    border: 1px solid #e2e8f0;
+    padding: 10px;
+    background: white;
+    border-radius: 8px;
+    margin: 0 auto;
+}
+
+.backup-codes-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1rem 0;
+}
+
+.backup-code {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.375rem;
+    padding: 0.5rem;
+    font-family: monospace;
+    font-size: 0.875rem;
+    text-align: center;
+    min-width: 100px;
+}
+
+.setup-2fa-steps ol {
+    padding-left: 1.5rem;
+}
+
+.setup-2fa-steps li {
+    margin-bottom: 0.75rem;
+}
+
+.qr-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 220px;
+    border: 2px dashed #cbd5e1;
+    border-radius: 0.5rem;
+    background-color: #f8fafc;
+    color: #94a3b8;
+    margin: 0 auto;
+    max-width: 250px;
+}
+
+.security-tips ul {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+.security-tips li {
+    padding: 0.25rem 0;
+    position: relative;
+    padding-left: 1.5rem;
+}
+
+.security-tips li:before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    color: #6366f1;
+}
+</style>
+{% endblock %}

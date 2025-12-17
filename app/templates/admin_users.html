@@ -1,0 +1,351 @@
+{% extends "layout.html" %}
+
+{% block title %}Управление пользователями - Parfume CRM{% endblock %}
+
+{% block page_title %}Управление пользователями{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col-12 d-flex gap-2">
+            <a href="/settings/users/new" class="btn btn-primary">Добавить пользователя</a>
+            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createInviteModal">Создать приглашение</button>
+        </div>
+    </div>
+
+    {% if pending_users %}
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title mb-0">Ожидают активации</h3>
+                    <span class="badge bg-warning text-dark">{{ pending_users|length }}</span>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Логин</th>
+                                    <th>Имя</th>
+                                    <th>Email</th>
+                                    <th>Роль</th>
+                                    <th>Партнёр</th>
+                                    <th>Создан</th>
+                                    <th class="text-center">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in pending_users %}
+                                <tr>
+                                    <td>{{ user.username }}</td>
+                                    <td>{{ user.full_name or '-' }}</td>
+                                    <td>{{ user.email or '-' }}</td>
+                                    <td>{{ user.role.name if user.role else '-' }}</td>
+                                    <td>{{ user.partner.name if user.partner else '-' }}</td>
+                                    <td>{{ user.created_at.strftime('%d.%m.%Y %H:%M') if user.created_at else '-' }}</td>
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-success me-2 btn-activate" data-user-id="{{ user.id }}">Активировать</button>
+                                        <button class="btn btn-sm btn-danger btn-reject" data-user-id="{{ user.id }}">Отклонить</button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Все пользователи</h3>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Логин</th>
+                                    <th>Имя</th>
+                                    <th>Email</th>
+                                    <th>Роль</th>
+                                    <th>Партнёр</th>
+                                    <th>Статус 2FA</th>
+                                    <th>Статус</th>
+                                    <th>Дата создания</th>
+                                    <th>Последний вход</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td>{{ user.id }}</td>
+                                    <td>{{ user.username }}</td>
+                                    <td>{{ user.full_name or '-' }}</td>
+                                    <td>{{ user.email or '-' }}</td>
+                                    <td>{{ user.role.name if user.role else '-' }}</td>
+                                    <td>{{ user.partner.name if user.partner else '-' }}</td>
+                                    <td>
+                                        {% if user.is_2fa_enabled %}
+                                            <span class="badge bg-success">Включён</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Отключён</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user.pending_activation %}
+                                            <span class="badge bg-warning text-dark">Ожидает активации</span>
+                                        {% elif user.is_active %}
+                                            <span class="badge bg-success">Активен</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Отключен</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ user.created_at.strftime('%d.%m.%Y %H:%M') if user.created_at else '-' }}</td>
+                                    <td>{{ user.last_login_at.strftime('%d.%m.%Y %H:%M') if user.last_login_at else '-' }}</td>
+                                    <td class="text-center">
+                                        {% if user.pending_activation %}
+                                            <button class="btn btn-sm btn-success me-2 btn-activate" data-user-id="{{ user.id }}">Активировать</button>
+                                            <button class="btn btn-sm btn-danger btn-reject" data-user-id="{{ user.id }}">Отклонить</button>
+                                        {% else %}
+                                            <a href="/settings/users/{{ user.id }}/edit" class="btn btn-sm btn-outline-primary me-2">Редактировать</a>
+                                            <button class="btn btn-sm btn-outline-warning me-2 btn-reset-password" data-user-id="{{ user.id }}">Сбросить пароль</button>
+                                            <form method="post" action="/settings/users/{{ user.id }}/delete" class="d-inline" onsubmit="return confirm('Отключить пользователя {{ user.username }}?');">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
+                                            </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createInviteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Создать приглашение</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createInviteForm">
+                    <div class="mb-3">
+                        <label for="inviteEmail" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="inviteEmail" name="email" required>
+                        <div class="form-text">На этот адрес можно отправить ссылку или скопировать её вручную.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="inviteRole" class="form-label">Роль</label>
+                        <select class="form-select" id="inviteRole" name="role_id" required>
+                            <option value="">Выберите роль</option>
+                            {% for role in roles %}
+                            <option value="{{ role.id }}">{{ role.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="invitePartner" class="form-label">Партнёр (опционально)</label>
+                        <select class="form-select" id="invitePartner" name="partner_id">
+                            <option value="">Не привязывать</option>
+                            {% for partner in partners %}
+                            <option value="{{ partner.id }}">{{ partner.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Будет проставлено при создании аккаунта.</div>
+                    </div>
+                    <div class="alert alert-info small py-2">Ссылка действует 7 дней и сработает только один раз.</div>
+                    <div id="inviteMessage" class="mb-2"></div>
+                    <div id="inviteLinkBlock" class="mb-3" style="display:none;">
+                        <label class="form-label">Ссылка-приглашение</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="inviteLink" readonly>
+                            <button class="btn btn-outline-secondary" type="button" onclick="copyInviteLink()">Скопировать</button>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                        <button type="submit" class="btn btn-primary">Сгенерировать</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function activateUser(userId) {
+    if (!confirm('Вы уверены, что хотите активировать этого пользователя?')) {
+        return;
+    }
+    try {
+        const response = await fetch(`/settings/users/${userId}/activate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include'
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert('Пользователь успешно активирован');
+            location.reload();
+        } else {
+            alert('Ошибка активации пользователя: ' + (result.message || 'Неизвестная ошибка'));
+        }
+    } catch (error) {
+        console.error('Error activating user:', error);
+        alert('Ошибка выполнения запроса');
+    }
+}
+
+async function rejectUser(userId) {
+    if (!confirm('Отклонить приглашение и удалить пользователя?')) {
+        return;
+    }
+    try {
+        const response = await fetch(`/settings/users/${userId}/reject`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include'
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert('Регистрация отклонена');
+            location.reload();
+        } else {
+            alert('Ошибка отклонения: ' + (result.message || 'Неизвестная ошибка'));
+        }
+    } catch (error) {
+        console.error('Error rejecting user:', error);
+        alert('Ошибка выполнения запроса');
+    }
+}
+
+async function resetUserPassword(userId) {
+    if (!confirm('Сбросить пароль пользователю и показать временный пароль?')) {
+        return;
+    }
+    try {
+        const response = await fetch(`/settings/users/${userId}/reset_password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            alert('Временный пароль: ' + result.temp_password + '\\nПередайте пользователю и попросите сменить после входа.');
+        } else {
+            alert('Ошибка сброса пароля: ' + (result.detail || result.message || 'Неизвестная ошибка'));
+        }
+    } catch (error) {
+        console.error('Error resetting password:', error);
+        alert('Ошибка выполнения запроса');
+    }
+}
+
+const inviteForm = document.getElementById('createInviteForm');
+const inviteMessage = document.getElementById('inviteMessage');
+const inviteLinkInput = document.getElementById('inviteLink');
+const inviteLinkBlock = document.getElementById('inviteLinkBlock');
+
+if (inviteForm) {
+    inviteForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        inviteMessage.innerHTML = '';
+        inviteLinkBlock.style.display = 'none';
+        const formData = new FormData(inviteForm);
+        try {
+            const params = new URLSearchParams();
+            const email = (formData.get('email') || '').toString().trim();
+            const roleId = (formData.get('role_id') || '').toString().trim();
+            if (!email) {
+                inviteMessage.innerHTML = '<div class="alert alert-danger">Укажите email</div>';
+                return;
+            }
+            if (!roleId) {
+                inviteMessage.innerHTML = '<div class="alert alert-danger">Выберите роль</div>';
+                return;
+            }
+            params.set('email', email);
+            params.set('role_id', roleId);
+            const partnerId = (formData.get('partner_id') || '').toString();
+            if (partnerId) params.set('partner_id', partnerId);
+
+            const response = await fetch('/settings/users/invitations', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                },
+                credentials: 'include',
+                body: params,
+            });
+            const data = await response.json();
+            if (response.ok && data.success) {
+                inviteMessage.innerHTML = '<div class="alert alert-success">Приглашение создано</div>';
+                inviteLinkInput.value = `${window.location.origin}${data.invitation_link}`;
+                inviteLinkBlock.style.display = 'block';
+            } else {
+                let msg = data.detail || data.message || 'Ошибка создания приглашения';
+                if (Array.isArray(msg)) {
+                    msg = msg.map(e => {
+                        const loc = Array.isArray(e.loc) ? e.loc.join('.') : '';
+                        const input = (e.input !== undefined) ? ` (input=${JSON.stringify(e.input)})` : '';
+                        return `${loc ? loc + ': ' : ''}${e.msg || JSON.stringify(e)}${input}`;
+                    }).join('<br>');
+                } else if (typeof msg === 'object') {
+                    msg = JSON.stringify(msg);
+                }
+                inviteMessage.innerHTML = `<div class="alert alert-danger">${msg}</div>`;
+            }
+        } catch (error) {
+            console.error('Create invite error', error);
+            inviteMessage.innerHTML = '<div class="alert alert-danger">Ошибка запроса</div>';
+        }
+    });
+}
+
+document.addEventListener('click', function(e) {
+    const activateBtn = e.target.closest('.btn-activate');
+    if (activateBtn) {
+        const uid = activateBtn.getAttribute('data-user-id');
+        if (uid) activateUser(uid);
+        return;
+    }
+    const rejectBtn = e.target.closest('.btn-reject');
+    if (rejectBtn) {
+        const uid = rejectBtn.getAttribute('data-user-id');
+        if (uid) rejectUser(uid);
+        return;
+    }
+    const resetBtn = e.target.closest('.btn-reset-password');
+    if (resetBtn) {
+        const uid = resetBtn.getAttribute('data-user-id');
+        if (uid) resetUserPassword(uid);
+    }
+});
+
+function copyInviteLink() {
+    if (!inviteLinkInput.value) return;
+    inviteLinkInput.select();
+    document.execCommand('copy');
+    alert('Ссылка скопирована');
+}
+</script>
+{% endblock %}

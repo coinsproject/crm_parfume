@@ -1,0 +1,136 @@
+{% extends "layout.html" %}
+
+{% block title %}Управление приглашениями - Parfume CRM{% endblock %}
+
+{% block content %}
+<div class="dashboard-layout">
+    <!-- Sidebar -->
+    {% include "partials/sidebar.html" %}
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Topbar -->
+        <header class="topbar">
+            <div class="container-fluid">
+                <div class="topbar-content">
+                    <h1 class="topbar-title">Управление приглашениями</h1>
+                    <div class="topbar-actions">
+                        <div class="search-form">
+                            <input type="text" class="form-control" placeholder="Поиск...">
+                        </div>
+                        <div class="user-profile">
+                            <div class="user-avatar">ПМ</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Invitations Content -->
+        <div class="container-fluid">
+            <div class="row mb-3">
+                <div class="col-12">
+                    <a href="/admin/invitations/new" class="btn btn-primary">Создать приглашение</a>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Список приглашений</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Email</th>
+                                            <th>Роль</th>
+                                            <th>Партнёр</th>
+                                            <th>Статус</th>
+                                            <th>Дата создания</th>
+                                            <th>Срок действия</th>
+                                            <th>Кто создал</th>
+                                            <th>Действия</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for invitation in invitations %}
+                                        <tr>
+                                            <td>{{ invitation.email }}</td>
+                                            <td>
+                                                {% if invitation.role %}
+                                                    <span class="badge bg-primary">{{ invitation.role.name }}</span>
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if invitation.partner %}
+                                                    {{ invitation.partner.name }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if invitation.is_used %}
+                                                    <span class="badge bg-success">Использовано</span>
+                                                {% elif invitation.expires_at < now() %}
+                                                    <span class="badge bg-secondary">Истекло</span>
+                                                {% else %}
+                                                    <span class="badge bg-warning">Активно</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ invitation.created_at.strftime('%d.%m.%Y %H:%M') if invitation.created_at else '-' }}</td>
+                                            <td>{{ invitation.expires_at.strftime('%d.%m.%Y %H:%M') if invitation.expires_at else '-' }}</td>
+                                            <td>{{ invitation.created_by.username if invitation.created_by else '-' }}</td>
+                                            <td>
+                                                {% if not invitation.is_used and invitation.expires_at > now() %}
+                                                    <button class="btn btn-sm btn-outline-primary copy-link-btn" 
+                                                            data-link="{{ request.url_root }}invite/{{ invitation.token }}">
+                                                        Копировать ссылку
+                                                    </button>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Добавляем обработчики для кнопок копирования ссылки
+    const copyButtons = document.querySelectorAll('.copy-link-btn');
+    copyButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const link = this.getAttribute('data-link');
+            navigator.clipboard.writeText(link).then(function() {
+                // Меняем текст кнопки на короткое время
+                const originalText = button.textContent;
+                button.textContent = 'Скопировано!';
+                button.classList.remove('btn-outline-primary');
+                button.classList.add('btn-success');
+                
+                setTimeout(function() {
+                    button.textContent = originalText;
+                    button.classList.remove('btn-success');
+                    button.classList.add('btn-outline-primary');
+                }, 2000);
+            }).catch(function(err) {
+                console.error('Ошибка при копировании: ', err);
+                alert('Не удалось скопировать ссылку');
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

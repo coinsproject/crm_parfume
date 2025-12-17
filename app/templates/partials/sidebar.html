@@ -1,0 +1,106 @@
+<div class="sidebar-inner d-flex flex-column h-100">
+  <div class="sidebar-brand px-3 py-3">
+    <span class="fw-bold">Parfume CRM</span>
+  </div>
+
+  {% set perms = request.state.permission_keys %}
+  {% set is_admin = request.state.is_admin %}
+
+  <ul class="nav nav-pills flex-column mb-auto">
+    {% if is_admin or 'dashboard.view' in perms %}
+    <li class="nav-item">
+      <a class="nav-link {% if active_menu == 'dashboard' %}active{% endif %}" href="/dashboard">
+        <i class="nav-icon fas fa-home me-2"></i>
+        <span>Dashboard</span>
+      </a>
+    </li>
+    {% endif %}
+    {% if is_admin or 'price.search' in perms or 'price.upload' in perms %}
+    <li class="nav-item">
+      <a class="nav-link {% if active_menu == 'price' %}active{% endif %}" href="/price/search">
+        <i class="nav-icon fas fa-tags me-2"></i>
+        <span>Прайс</span>
+      </a>
+    </li>
+    {% endif %}
+    {% if is_admin or 'clients.view_all' in perms or 'clients.view_own' in perms or 'clients.create' in perms %}
+    <li class="nav-item">
+      <a class="nav-link {% if active_menu == 'clients' %}active{% endif %}" href="/clients">
+        <i class="nav-icon fas fa-users me-2"></i>
+        <span>Клиенты</span>
+      </a>
+    </li>
+    {% endif %}
+    {% if is_admin or 'orders.view_all' in perms or 'orders.view_own' in perms or 'orders.create' in perms %}
+    <li class="nav-item">
+      <a class="nav-link {% if active_menu == 'orders' %}active{% endif %}" href="/orders">
+        <i class="nav-icon fas fa-shopping-cart me-2"></i>
+        <span>Заказы</span>
+      </a>
+    </li>
+    {% endif %}
+    {% if is_admin or 'partners.view_all' in perms %}
+    <li class="nav-item">
+      <a class="nav-link {% if active_menu == 'partners' %}active{% endif %}" href="/partners">
+        <i class="nav-icon fas fa-handshake me-2"></i>
+        <span>Партнеры</span>
+      </a>
+    </li>
+    {% endif %}
+
+    {# Для партнёра показываем только собственный профиль, без раздела "Партнеры" #}
+    {% if (not is_admin) and ('partners.view_own' in perms) and ('partners.view_all' not in perms) %}
+    <li class="nav-item">
+      <a class="nav-link {% if active_menu == 'partners' %}active{% endif %}" href="/partners/me">
+        <i class="nav-icon fas fa-user me-2"></i>
+        <span>Профиль</span>
+      </a>
+    </li>
+    {% endif %}
+    {% if is_admin or 'catalog.view_full' in perms or 'catalog.view_client' in perms or 'catalog.manage' in perms %}
+    <li class="nav-item">
+      <a class="nav-link {% if active_menu == 'catalog' %}active{% endif %}" href="/catalog">
+        <i class="nav-icon fas fa-box-open me-2"></i>
+        <span>Каталог</span>
+      </a>
+    </li>
+    {% endif %}
+    {% if is_admin %}
+    <li class="nav-item">
+      <a class="nav-link d-flex justify-content-between align-items-center {% if active_menu in ['settings_roles','settings_security','admin_catalog'] %}active{% endif %}"
+         data-bs-toggle="collapse" href="#settingsMenu" role="button"
+         aria-expanded="{% if active_menu in ['settings_roles','settings_security','admin_catalog'] %}true{% else %}false{% endif %}"
+         aria-controls="settingsMenu">
+        <span class="d-flex align-items-center"><i class="nav-icon fas fa-cog me-2"></i><span>Настройки</span></span>
+        <i class="fas fa-chevron-down small"></i>
+      </a>
+      <div class="collapse {% if active_menu in ['settings_roles','settings_security','admin_catalog'] %}show{% endif %}" id="settingsMenu">
+        <ul class="nav flex-column ms-3 mt-1">
+          <li class="nav-item">
+            <a class="nav-link {% if active_menu == 'settings_roles' %}active{% endif %}" href="/settings/roles">
+              <i class="nav-icon fas fa-key me-2"></i>
+              <span>Роли и права</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if active_menu == 'settings_security' %}active{% endif %}" href="/settings/security">
+              <i class="nav-icon fas fa-shield-alt me-2"></i>
+              <span>Безопасность</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            {# Каталог (админ) скрыт, ручная правка отключена #}
+          </li>
+        </ul>
+      </div>
+    </li>
+    {% endif %}
+  </ul>
+
+  <div class="sidebar-footer mt-auto px-3 pb-3">
+    <a class="btn btn-outline-light w-100" href="/auth/logout" title="Выйти">
+      <i class="nav-icon fas fa-door-open me-2"></i>
+      <span>Выход</span>
+    </a>
+  </div>
+</div>

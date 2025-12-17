@@ -1,0 +1,118 @@
+{% extends "layout.html" %}
+
+{% block title %}Dashboard - Parfume CRM{% endblock %}
+{% block page_title %}Сводка{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="dashboard-stats mb-4">
+        <div class="card stat-card">
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title">Всего клиентов</h5>
+                <div class="stat-value flex-grow-1">{{ total_customers }}</div>
+                <div class="stat-growth">{{ customer_growth }}</div>
+            </div>
+        </div>
+        <div class="card stat-card">
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title">Всего заказов</h5>
+                <div class="stat-value flex-grow-1">{{ total_orders }}</div>
+                <div class="stat-growth">{{ order_growth }}</div>
+            </div>
+        </div>
+        <div class="card stat-card">
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title">Активные партнёры</h5>
+                <div class="stat-value flex-grow-1">{{ active_partners }}</div>
+                <div class="stat-growth">{{ partner_growth }}</div>
+            </div>
+        </div>
+        <div class="card stat-card">
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title">Заказы за сегодня</h5>
+                <div class="stat-value flex-grow-1">{{ orders_today }}</div>
+                <div class="stat-growth">{{ today_growth }}</div>
+            </div>
+        </div>
+        <div class="card stat-card">
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title">Оборот (всего)</h5>
+                <div class="stat-value flex-grow-1">{{ "{:,.0f}".format(orders_sum_total) }} ₽</div>
+            </div>
+        </div>
+        <div class="card stat-card">
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title">Оборот за месяц</h5>
+                <div class="stat-value flex-grow-1">{{ "{:,.0f}".format(orders_sum_month) }} ₽</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Динамика заказов</h3>
+                </div>
+                <div class="card-body chart-container">
+                    <div class="chart-placeholder">
+                        <p>График будет позже</p>
+                        <div class="chart-bars">
+                            <div class="chart-bar" style="height: 60%;"></div>
+                            <div class="chart-bar" style="height: 80%;"></div>
+                            <div class="chart-bar" style="height: 45%;"></div>
+                            <div class="chart-bar" style="height: 70%;"></div>
+                            <div class="chart-bar" style="height: 55%;"></div>
+                            <div class="chart-bar" style="height: 85%;"></div>
+                            <div class="chart-bar" style="height: 65%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if top_partners or top_clients %}
+    <div class="row mb-4">
+        {% if top_partners %}
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header"><h3 class="card-title">Топ партнёры</h3></div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead><tr><th>Партнёр</th><th>Сумма</th><th>Заказы</th></tr></thead>
+                            <tbody>
+                                {% for p in top_partners %}
+                                <tr><td>{{ p.name }}</td><td>{{ "{:,.0f}".format(p.sum_amount) }} ₽</td><td>{{ p.order_count }}</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% if top_clients %}
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header"><h3 class="card-title">Топ клиенты</h3></div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead><tr><th>Клиент</th><th>Сумма</th><th>Заказы</th></tr></thead>
+                            <tbody>
+                                {% for c in top_clients %}
+                                <tr><td>{{ c.name }}</td><td>{{ "{:,.0f}".format(c.sum_amount) }} ₽</td><td>{{ c.order_count }}</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

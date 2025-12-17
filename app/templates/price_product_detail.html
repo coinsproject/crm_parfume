@@ -1,0 +1,115 @@
+{% extends "layout.html" %}
+{% block title %}Позиция прайса{% endblock %}
+{% block page_title %}Позиция прайса{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex gap-2 mb-3">
+        <a href="/price" class="btn btn-outline-secondary">← К прайсу</a>
+        <a href="/dashboard" class="btn btn-outline-secondary">На главную</a>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h5 class="card-title mb-1">{{ product.raw_name }}</h5>
+                    <div class="text-muted small">Артикул: {{ product.external_article }}</div>
+                </div>
+                {% if product.is_active %}
+                    <span class="badge bg-success">Активен</span>
+                {% else %}
+                    <span class="badge bg-secondary">Неактивен</span>
+                {% endif %}
+            </div>
+            <div class="mt-3 row g-3">
+                <div class="col-md-3"><strong>Бренд:</strong> {{ product.brand or "-" }}</div>
+                <div class="col-md-3"><strong>Категория:</strong> {{ product.category or "-" }}</div>
+                <div class="col-md-3"><strong>Объем:</strong> {{ product.volume_value or "-" }} {{ product.volume_unit or "" }}</div>
+                <div class="col-md-3"><strong>Пол:</strong> {{ product.gender or "-" }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-title">Текущая цена</h6>
+                    {% set last = history[0] if history|length > 0 else None %}
+                    {% if last %}
+                        {% if partner_pricing %}
+                            <div class="table-responsive">
+                                <table class="table table-sm mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Прайс</th>
+                                            <th>Прайс + админ</th>
+                                            <th>Клиенту (админ + партнёр)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>{{ partner_pricing.base_price }}</td>
+                                            <td>{{ partner_pricing.admin_price }}</td>
+                                            <td>{{ partner_pricing.total_price }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="fs-4">
+                                {% if can_view_client %}
+                                    {{ (last.new_price_2 if last.new_price_2 is not none else last.price) or "-" }}
+                                {% else %}
+                                    <span class="text-muted">Нет прав</span>
+                                {% endif %}
+                                {% if last.change_type == "UP" %}<span class="text-success">↑</span>{% endif %}
+                                {% if last.change_type == "DOWN" %}<span class="text-danger">↓</span>{% endif %}
+                            </div>
+                        {% endif %}
+                        <div class="text-muted small">Обновлено: {{ last.created_at }}</div>
+                    {% else %}
+                        <div class="text-muted">Нет ценовой истории</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-title">История цен (последние)</h6>
+                    <div class="table-responsive" style="max-height: 320px;">
+                        <table class="table table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Дата прайса</th>
+                                    <th>Цена</th>
+                                    <th>Тип</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for h in history %}
+                                <tr>
+                                    <td>{{ h.source_date or h.created_at.date() }}</td>
+                                    <td>
+                                        {% if can_view_client %}
+                                            {{ (h.new_price_2 if h.new_price_2 is not none else h.price) or "-" }}
+                                        {% else %}
+                                            <span class="text-muted">Нет прав</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ h.change_type or "-" }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="3" class="text-muted">Нет записей</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

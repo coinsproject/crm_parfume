@@ -1,0 +1,92 @@
+{% extends "layout.html" %}
+
+{% block title %}Каталог · {{ item.name }}{% endblock %}
+{% block page_title %}Редактирование каталога{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <div class="small text-muted">ID: {{ item.id }}</div>
+            <div class="fw-semibold">{{ item.name }}</div>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm" href="/admin/catalog">← К списку</a>
+    </div>
+    <div class="card-body">
+        <form method="post" action="/admin/catalog/{{ item.id }}">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Название</label>
+                    <input type="text" class="form-control" name="name" value="{{ item.name }}" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Бренд</label>
+                    <input list="brandOptions" name="brand" class="form-control" value="{{ item.brand or '' }}">
+                    <datalist id="brandOptions">
+                        {% for b in brand_options %}<option value="{{ b }}">{% endfor %}
+                    </datalist>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Тип</label>
+                    <input list="typeOptions" name="type_param" class="form-control" value="{{ item.type or '' }}">
+                    <datalist id="typeOptions">
+                        {% for t in type_options %}<option value="{{ t }}">{% endfor %}
+                    </datalist>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Объем</label>
+                    <input type="text" class="form-control" name="volume" value="{{ item.volume or '' }}" placeholder="100 мл">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Пол</label>
+                    <select name="gender" class="form-select">
+                        <option value="" {% if not item.gender %}selected{% endif %}>—</option>
+                        <option value="Женский" {% if item.gender == 'Женский' %}selected{% endif %}>Женский</option>
+                        <option value="Мужской" {% if item.gender == 'Мужской' %}selected{% endif %}>Мужской</option>
+                        <option value="Унисекс" {% if item.gender == 'Унисекс' %}selected{% endif %}>Унисекс</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Краткое описание</label>
+                    <textarea class="form-control" name="description_short" rows="2">{{ item.description_short or '' }}</textarea>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Полное описание</label>
+                    <textarea class="form-control" name="description_full" rows="4">{{ item.description_full or '' }}</textarea>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Изображение (URL)</label>
+                    <input type="text" class="form-control" name="image_url" value="{{ item.image_url or '' }}">
+                    {% if item.image_url %}
+                    <div class="mt-2">
+                        <img src="{{ item.image_url }}" alt="preview" style="max-height:140px;" class="img-thumbnail">
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Теги (через запятую или с новой строки)</label>
+                    <textarea class="form-control" name="tags" rows="3">{% if item.tags %}{{ ', '.join(item.tags) }}{% endif %}</textarea>
+                </div>
+                <div class="col-md-3 form-check mt-4">
+                    <input class="form-check-input" type="checkbox" value="1" id="visibleCheck" name="visible" {% if item.visible %}checked{% endif %}>
+                    <label class="form-check-label" for="visibleCheck">
+                        Показывать в каталоге
+                    </label>
+                </div>
+                <div class="col-md-3 mt-4">
+                    <div class="form-label">Наличие</div>
+                    {% if item.in_stock %}
+                    <span class="badge bg-success">В наличии</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Нет</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="mt-4 d-flex gap-2">
+                <a class="btn btn-outline-secondary" href="/admin/catalog">Отмена</a>
+                <button class="btn btn-primary" type="submit">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,267 @@
+{% extends "layout.html" %}
+
+{% block title %}Каталог ароматов - Parfume CRM{% endblock %}
+
+{% block page_title %}Каталог ароматов{% endblock %}
+
+{% block content %}
+        <!-- Catalog Content -->
+        <div class="container-fluid">
+            <!-- Alphabet Navigation -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="alphabet-nav">
+                        <a href="/fragrances" class="alphabet-letter {% if not letter %}active{% endif %}">Все</a>
+                        {% for l in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
+                        <a href="/fragrances?letter={{ l }}" class="alphabet-letter {% if letter == l %}active{% endif %}">{{ l }}</a>
+                        {% endfor %}
+                        <a href="/fragrances?letter=0-9" class="alphabet-letter {% if letter == '0-9' %}active{% endif %}">0-9</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters and Actions -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="d-flex gap-2">
+                        <select class="form-select" id="filterType">
+                            <option value="all" {% if not filter_type or filter_type == 'all' %}selected{% endif %}>Все ароматы</option>
+                            <option value="common" {% if filter_type == 'common' %}selected{% endif %}>Общие</option>
+                            <option value="partner" {% if filter_type == 'partner' %}selected{% endif %}>Мои (партнерские)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-end">
+                        {% if current_user.role.name in ['ADMIN', 'MANAGER'] %}
+                        <a href="/admin/fragrances/import" class="btn btn-primary">Добавить аромат</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fragrances Grid -->
+            <div class="row">
+                {% for fragrance in fragrances %}
+                <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-4">
+                    <div class="fragrance-card">
+                        <div class="fragrance-image">
+                            {% if fragrance.image_url %}
+                                <img src="{{ fragrance.image_url }}" alt="{{ fragrance.name }}" class="img-fluid">
+                            {% else %}
+                                <div class="no-image-placeholder">
+                                    <i class="fas fa-bottle"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="fragrance-info">
+                            <h5 class="fragrance-name">{{ fragrance.name }}</h5>
+                            <p class="fragrance-brand">{{ fragrance.brand }}</p>
+                            <div class="fragrance-meta">
+                                {% if fragrance.year %}
+                                    <span class="fragrance-year">{{ fragrance.year }} г.</span>
+                                {% endif %}
+                                {% if fragrance.rating %}
+                                    <span class="fragrance-rating">
+                                        <i class="fas fa-star"></i> {{ "{:.1f}".format(fragrance.rating) }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                            {% if fragrance.main_accords and fragrance.main_accords|length > 0 %}
+                            <div class="fragrance-accords">
+                                {% for accord in fragrance.main_accords[:3] %}
+                                <span class="accord-tag">{{ accord.name }}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="fragrance-actions">
+                            <a href="/fragrances/{{ fragrance.id }}" class="btn btn-outline-primary btn-sm">Подробнее</a>
+                        </div>
+                    </div>
+                {% else %}
+                <div class="col-12">
+                    <div class="empty-state">
+                        <p>Ароматы не найдены. Попробуйте изменить параметры поиска.</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if fragrances and fragrances|length == 20 %}  <!-- Если показываем по 20 на странице -->
+            <div class="row">
+                <div class="col-12">
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                                <a class="page-link" href="?page={{ page - 1 }}{% if q %}&q={{ q }}{% endif %}{% if letter %}&letter={{ letter }}{% endif %}">Предыдущая</a>
+                            </li>
+                            <li class="page-item active">
+                                <a class="page-link" href="#">{{ page }}</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page + 1 }}{% if q %}&q={{ q }}{% endif %}{% if letter %}&letter={{ letter }}{% endif %}">Следующая</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+{% endblock %}
+
+{% block styles %}
+<style>
+.alphabet-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 1.5rem;
+}
+
+.alphabet-letter {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.375rem;
+    text-decoration: none;
+    color: #475569;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.alphabet-letter:hover {
+    background-color: #f1f5f9;
+    color: #1e293b;
+}
+
+.alphabet-letter.active {
+    background-color: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+.fragrance-card {
+    background: white;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.fragrance-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+}
+
+.fragrance-image {
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.fragrance-image img {
+    max-height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+}
+
+.no-image-placeholder {
+    font-size: 3rem;
+    color: #cbd5e1;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fragrance-info {
+    padding: 1rem;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.fragrance-name {
+    margin: 0 0 0.25rem 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.fragrance-brand {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.fragrance-meta {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.8rem;
+    color: #94a3b8;
+}
+
+.fragrance-rating {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.fragrance-accords {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-bottom: 1rem;
+}
+
+.accord-tag {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+}
+
+.fragrance-actions {
+    padding: 0 1rem 1rem 1rem;
+    margin-top: auto;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #64748b;
+}
+
+.empty-state p {
+    font-size: 1.1rem;
+}
+
+@media (max-width: 768px) {
+    .alphabet-nav {
+        justify-content: center;
+    }
+    
+    .alphabet-letter {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.75rem;
+    }
+    
+    .fragrance-card {
+        margin-bottom: 1rem;
+    }
+}
+</style>
+{% endblock %}

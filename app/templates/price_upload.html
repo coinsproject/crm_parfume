@@ -1,0 +1,251 @@
+{% extends "layout.html" %}
+{% block title %}Загрузка прайса{% endblock %}
+{% block page_title %}Загрузка прайса{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h5 class="card-title mb-1">Загрузка и статистика</h5>
+                    <div class="text-muted small">Лист «Позиции», колонки: Артикул / Наименование / Цена</div>
+                </div>
+                <form action="/price/upload" method="post" enctype="multipart/form-data" class="d-flex align-items-center gap-3">
+                    <input type="file" name="file" accept=".xlsx" class="form-control" required style="max-width: 320px;">
+                    <button type="submit" class="btn btn-primary">Загрузить прайс</button>
+                    <a href="/price" class="btn btn-outline-secondary">Назад</a>
+                </form>
+            </div>
+
+            {% if latest_upload %}
+            {% set counts_by_change = counts_by_change | default({}) %}
+            {% set selected_change = selected_change | default(None) %}
+            {% set page = page | default(1) %}
+            {% set pages_count = pages_count | default(1) %}
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="text-muted small mb-1">Последний прайс</div>
+                            <div class="fw-semibold">{{ latest_upload.source_date or latest_upload.uploaded_at.date() }}</div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge {% if latest_upload.status == 'done' %}bg-success{% elif latest_upload.status == 'failed' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                                    {{ latest_upload.status or 'unknown' }}
+                                </span>
+                                <div class="small text-truncate">{{ latest_upload.filename or "-" }}</div>
+                            </div>
+                            <div class="small text-muted mt-1">Строк: {{ latest_upload.total_rows or latest_upload.total_count }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="text-muted small mb-1">Новых позиций</div>
+                            <div class="fw-bold text-success">+{{ counts_by_change.get('NEW', latest_upload.added_count or latest_upload.new_count) }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="text-muted small mb-1">Цена изменилась</div>
+                            <div class="fw-bold text-primary">
+                                {{ (counts_by_change.get('UP',0) + counts_by_change.get('DOWN',0)) if counts_by_change else (latest_upload.updated_price_count or ((latest_upload.up_count or 0) + (latest_upload.down_count or 0))) }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="text-muted small mb-1">Без изменений</div>
+                            <div class="fw-bold text-secondary">{{ counts_by_change.get('UNCHANGED', latest_upload.unchanged_count) }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="text-muted small mb-1">Нет в наличии</div>
+                            <div class="fw-bold text-muted">{{ counts_by_change.get('REMOVED', latest_upload.marked_out_of_stock_count or latest_upload.removed_count) }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% set sections = [
+                ('NEW', 'Новые позиции', 'success'),
+                ('UP', 'Цена выросла', 'primary'),
+                ('DOWN', 'Цена снизилась', 'danger'),
+                ('REMOVED', 'Нет в наличии', 'secondary'),
+            ] %}
+            <div class="row g-3 mb-3">
+                {% for key, title, color in sections %}
+                <div class="col-md-3">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body d-flex flex-column">
+                            <div class="text-muted small mb-1">{{ title }}</div>
+                            <div class="fw-bold mb-2">{{ counts_by_change.get(key, 0) }}</div>
+                            <a href="?ct={{ key }}&page=1" class="btn btn-sm btn-outline-{{ color }} mt-auto">Открыть</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% if selected_change %}
+            {% set current_section = sections|selectattr(0, 'equalto', selected_change)|first %}
+            <div class="card mb-4" id="changes-list-block">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-{{ current_section[2] if current_section else 'secondary' }} me-2">{{ selected_change }}</span>
+                        {{ current_section[1] if current_section else '' }} — всего: {{ counts_by_change.get(selected_change, 0) }}
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleChangesList()">Скрыть список</button>
+                </div>
+                <div class="card-body p-0">
+                    {% if items_by_change.get(selected_change, []) %}
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 12%;">Артикул</th>
+                                    <th>Наименование</th>
+                                    <th style="width: 10%;">Цена (price_2)</th>
+                                    <th style="width: 10%;">Закупка (price_1)</th>
+                                    {% if selected_change != 'NEW' %}<th style="width: 10%;">Было (price_1)</th>{% endif %}
+                                    <th style="width: 10%;">Тип</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in items_by_change.get(selected_change, []) %}
+                                <tr>
+                                    <td class="text-nowrap">{{ item.price_product.external_article if item.price_product else '-' }}</td>
+                                    <td>
+                                        {% if item.price_product %}
+                                            <a href="/price/product/{{ item.price_product.id }}" class="text-decoration-none text-dark">
+                                                {{ item.price_product.raw_name or item.price_product.product_name or item.price_product.external_article }}
+                                            </a>
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ item.new_price_2 or item.price or "-" }}</td>
+                                    <td>{{ item.new_price_1 or "-" }}</td>
+                                    {% if selected_change != 'NEW' %}
+                                    <td>{{ item.old_price_1 or "-" }}</td>
+                                    {% endif %}
+                                    <td><span class="badge bg-{{ current_section[2] if current_section else 'secondary' }}">{{ selected_change }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="p-3 text-muted">Нет позиций</div>
+                    {% endif %}
+                </div>
+                {% if pages_count and pages_count > 1 %}
+                <div class="card-footer">
+                    <nav aria-label="Пагинация изменений">
+                        <ul class="pagination mb-0">
+                            {% set prev_page = page - 1 if page > 1 else 1 %}
+                            {% set next_page = page + 1 if page < pages_count else pages_count %}
+                            <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                                <a class="page-link" href="?ct={{ selected_change }}&page={{ prev_page }}">«</a>
+                            </li>
+                            <li class="page-item disabled"><span class="page-link">Стр. {{ page }} из {{ pages_count }}</span></li>
+                            <li class="page-item {% if page == pages_count %}disabled{% endif %}">
+                                <a class="page-link" href="?ct={{ selected_change }}&page={{ next_page }}">»</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% endif %}
+
+            <h6 class="card-title mb-3">История загрузок</h6>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Дата</th>
+                            <th>Файл</th>
+                            <th>Статус</th>
+                            <th>Строк</th>
+                            <th>Новых</th>
+                            <th>Изменён</th>
+                            <th>Без изм.</th>
+                            <th>Нет в наличии</th>
+                            <th class="text-end">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in uploads %}
+                        <tr>
+                            <td>{{ u.source_date or u.uploaded_at.date() }}</td>
+                            <td class="text-truncate" style="max-width: 200px;">{{ u.filename or '-' }}</td>
+                            <td>
+                                <span class="badge {% if u.status == 'done' %}bg-success{% elif u.status == 'failed' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                                    {{ u.status or 'unknown' }}
+                                </span>
+                            </td>
+                            <td>{{ u.total_rows or u.total_count }}</td>
+                            <td>
+                                {% if latest_upload and u.id == latest_upload.id %}
+                                    {{ counts_by_change.get('NEW', u.added_count or u.new_count) }}
+                                {% else %}
+                                    {{ u.added_count or u.new_count }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if latest_upload and u.id == latest_upload.id %}
+                                    {{ (counts_by_change.get('UP',0) + counts_by_change.get('DOWN',0)) }}
+                                {% else %}
+                                    {{ u.updated_price_count or ((u.up_count or 0) + (u.down_count or 0)) }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if latest_upload and u.id == latest_upload.id %}
+                                    {{ counts_by_change.get('UNCHANGED', u.unchanged_count) }}
+                                {% else %}
+                                    {{ u.unchanged_count }}
+                                {% endif %}
+                            </td>
+                            <td class="text-muted">
+                                {% if latest_upload and u.id == latest_upload.id %}
+                                    {{ counts_by_change.get('REMOVED', u.marked_out_of_stock_count or u.removed_count) }}
+                                {% else %}
+                                    {{ u.marked_out_of_stock_count or u.removed_count }}
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-primary" href="/price/search?upload_id={{ u.id }}&page_size=50">Открыть</a>
+                                <form action="/price/upload/{{ u.id }}/delete" method="post" class="d-inline" onsubmit="return confirm('Удалить загрузку?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7" class="text-muted">Нет загрузок</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleChangesList() {
+    const block = document.getElementById('changes-list-block');
+    if (!block) return;
+    block.style.display = block.style.display === 'none' ? '' : 'none';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+crm*.db
+data/
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Temporary files
+tmp_*.py
+_tmp_*.py
+*.tmp
+
+# Frontend build (если есть)
+node_modules/
+dist/
+build/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Test files
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Alembic (оставляем только версии миграций)
+alembic/__pycache__/
+alembic/versions/__pycache__/
+

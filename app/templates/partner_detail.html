@@ -1,0 +1,125 @@
+{% extends "layout.html" %}
+{% block title %}Партнёр{% endblock %}
+{% block page_title %}Партнёр{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">{{ partner.name }}</h4>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary btn-sm" href="/partners">Назад</a>
+            {% if current_user.role and current_user.role.name == 'ADMIN' %}
+            <a class="btn btn-primary btn-sm" href="/partners/{{ partner.id }}/edit">Редактировать</a>
+            {% endif %}
+        </div>
+    </div>
+    {% if temp_password %}
+    <div class="alert alert-warning" role="alert">
+        Временный пароль: <strong>{{ temp_password }}</strong>. Передайте партнёру и попросите сменить при первом входе.
+    </div>
+    {% endif %}
+    <div class="card">
+        <div class="card-body">
+            <p><strong>ФИО:</strong> {{ partner.full_name or partner.name }}</p>
+            <p><strong>Телефон:</strong> {{ partner.phone or '-' }}</p>
+            <p><strong>Telegram:</strong> {{ partner.telegram or '-' }}</p>
+            <p><strong>Telegram ник:</strong> {{ partner.telegram_nick or '-' }}</p>
+            <p><strong>Комментарий:</strong> {{ partner.comment or partner.notes or '-' }}</p>
+            <p><strong>Доступ к каталогу:</strong>
+                {% if partner.can_access_catalog %}<span class="badge bg-success">Да</span>{% else %}<span class="badge bg-secondary">Нет</span>{% endif %}
+            </p>
+            <p><strong>Статус:</strong> {{ partner.status or '-' }}</p>
+            <p><strong>Наценка админа:</strong> {{ partner.admin_markup_percent if partner.admin_markup_percent is not none else 0 }}%</p>
+            <p><strong>Макс. наценка партнёра:</strong> {{ partner.max_partner_markup_percent if partner.max_partner_markup_percent is not none else '-' }}{% if partner.max_partner_markup_percent is not none %}%{% endif %}</p>
+            <p><strong>Наценка партнёра по умолчанию:</strong> {{ partner.partner_default_markup_percent if partner.partner_default_markup_percent is not none else 0 }}%</p>
+            <p><strong>Может редактировать цены:</strong>
+                {% if partner.can_edit_prices %}<span class="badge bg-success">Да</span>{% else %}<span class="badge bg-secondary">Нет</span>{% endif %}
+            </p>
+        </div>
+    </div>
+    {% if current_user.partner_id == partner.id and current_user.role and current_user.role.name == 'PARTNER' %}
+    <div class="card mt-3">
+        <div class="card-body">
+            <h5 class="card-title">Моя наценка</h5>
+            <form method="post" action="/partners/me/markup" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label">Наценка по умолчанию, %</label>
+                    <input type="number" min="0" step="0.01" class="form-control" name="partner_default_markup_percent" value="{{ partner.partner_default_markup_percent if partner.partner_default_markup_percent is not none else 0 }}">
+                    {% if partner.max_partner_markup_percent is not none %}
+                        <div class="form-text">Максимум: {{ partner.max_partner_markup_percent }}%</div>
+                    {% endif %}
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if current_user.partner_id == partner.id and current_user.role and current_user.role.name == 'PARTNER' %}
+    <div class="card mt-3">
+        <div class="card-body">
+            <h5 class="card-title">Сменить пароль</h5>
+            {% set pw = request.query_params.get('pw') %}
+            {% if pw == 'ok' %}
+                <div class="alert alert-success">Пароль обновлён</div>
+            {% elif pw == 'bad_old' %}
+                <div class="alert alert-danger">Текущий пароль неверный</div>
+            {% elif pw == 'bad_new' %}
+                <div class="alert alert-danger">Новый пароль должен быть минимум 6 символов</div>
+            {% elif pw == 'bad_confirm' %}
+                <div class="alert alert-danger">Пароли не совпадают</div>
+            {% endif %}
+            <form method="post" action="/partners/me/change_password" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Текущий пароль</label>
+                    <input type="password" class="form-control" name="current_password" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Новый пароль</label>
+                    <input type="password" class="form-control" name="new_password" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Повторите пароль</label>
+                    <input type="password" class="form-control" name="new_password_confirm" required>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+    <div class="card mt-3">
+        <div class="card-body">
+            <h5 class="card-title">Финансы по партнёру</h5>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="fw-semibold">Всего заказов</div>
+                    <div>{{ finance.count_orders }}</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="fw-semibold">Оборот по клиентам</div>
+                    <div>{{ "{:,.2f}".format(finance.turnover) }}</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="fw-semibold">Закуп партнёра</div>
+                    <div>
+                        {% if can_view_cost %}
+                            {{ "{:,.2f}".format(finance.cost) }}
+                        {% else %}недоступно{% endif %}
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="fw-semibold">Маржа партнёра</div>
+                    <div>
+                        {% if can_view_margin %}
+                            {{ "{:,.2f}".format(finance.margin) }}
+                        {% else %}недоступно{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

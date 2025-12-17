@@ -1,0 +1,85 @@
+{% extends "layout.html" %}
+
+{% block title %}Партнёры - Parfume CRM{% endblock %}
+
+{% block page_title %}Партнёры{% endblock %}
+
+{% block content %}
+
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <h3 class="card-title mb-0">Список партнёров</h3>
+                                <form class="d-flex gap-2" method="get" action="/partners">
+                                    <input type="text" class="form-control form-control-sm" name="q" placeholder="Поиск ФИО/тел/почта" value="{{ filters.q if filters else '' }}">
+                                    <select class="form-select form-select-sm" name="status">
+                                        {% set st = filters.status if filters else 'all' %}
+                                        <option value="all" {% if st == 'all' %}selected{% endif %}>Все</option>
+                                        <option value="active" {% if st == 'active' %}selected{% endif %}>Активные</option>
+                                        <option value="paused" {% if st == 'paused' %}selected{% endif %}>На паузе</option>
+                                        <option value="blocked" {% if st == 'blocked' %}selected{% endif %}>Заблокированные</option>
+                                    </select>
+                                    <button class="btn btn-outline-secondary btn-sm" type="submit">Фильтр</button>
+                                </form>
+                                {% if can_manage %}
+                                <a class="btn btn-primary btn-sm" href="/partners/new">Добавить партнёра</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>ФИО</th>
+                                            <th>Телефон</th>
+                                            <th>Email</th>
+                                            <th>Наценка админа</th>
+                                            <th>Наценка партнёра</th>
+                                            <th>Статус</th>
+                                            <th>Создан</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for p in partners %}
+                                        <tr>
+                                            <td>{{ p.full_name or p.name }}</td>
+                                            <td>{{ p.phone or '-' }}</td>
+                                            <td>{{ p.user.email if p.user else '-' }}</td>
+                                            <td>{{ p.admin_markup_percent if p.admin_markup_percent is not none else 0 }}%</td>
+                                            <td>{{ p.partner_default_markup_percent if p.partner_default_markup_percent is not none else 0 }}%</td>
+                                            <td>
+                                                {% if p.is_active %}
+                                                <span class="badge bg-success">Активный</span>
+                                                {% else %}
+                                                <span class="badge bg-secondary">Выключен</span>
+                                                {% endif %}
+                                                {% if p.status %}<div class="small text-muted">{{ p.status }}</div>{% endif %}
+                                            </td>
+                                            <td>{{ p.created_at.strftime("%d.%m.%Y") if p.created_at else "-" }}</td>
+                                            <td>
+                                                <a class="btn btn-sm btn-outline-primary" href="/partners/{{ p.id }}">Открыть</a>
+                                                {% if can_manage %}
+                                                <form action="/partners/{{ p.id }}/delete" method="post" class="d-inline" onsubmit="return confirm('Удалить партнёра {{ p.name or p.id }}?');">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
+                                                </form>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                        {% if partners|length == 0 %}
+                                        <tr><td colspan="7" class="text-muted text-center">Партнёры не найдены</td></tr>
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+{% endblock %}

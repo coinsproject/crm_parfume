@@ -1,0 +1,26 @@
+{% extends "catalog_client_layout.html" %}
+
+{% block title %}Каталог{% endblock %}
+
+{% block content %}
+<h3 class="mb-3">Каталог ароматов</h3>
+<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-3">
+    {% for fragrance in fragrances %}
+    <div class="col">
+        <div class="card h-100">
+            {% if fragrance.image_url %}
+            <img src="{{ fragrance.image_url }}" class="card-img-top" alt="{{ fragrance.name }}">
+            {% endif %}
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title">{{ fragrance.name }}</h5>
+                <p class="card-text text-muted">{{ fragrance.brand }}</p>
+                <a href="/client/catalog/{{ fragrance.id }}" class="btn btn-outline-primary mt-auto">Открыть</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% if fragrances|length == 0 %}
+    <div class="col-12 text-center text-muted">Каталог пуст</div>
+    {% endif %}
+</div>
+{% endblock %}

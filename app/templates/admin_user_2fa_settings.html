@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+
+{% block title %}Настройки 2FA пользователя - Parfume CRM{% endblock %}
+
+{% block content %}
+<div class="app-container">
+    {% include "partials/sidebar.html" %}
+
+    <main class="main-content">
+        <header class="main-header">
+            <div class="header-actions">
+                <h2>Настройки 2FA пользователя: {{ target_user.username }}</h2>
+            </div>
+        </header>
+
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Управление 2FA</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h4>Статус 2FA</h4>
+                                    <p>Текущий статус: <span class="badge {% if target_user.is_2fa_enabled %}bg-success{% else %}bg-danger{% endif %}">
+                                        {% if target_user.is_2fa_enabled %}Включена{% else %}Отключена{% endif %}
+                                    </span></p>
+                                    
+                                    {% if target_user.is_2fa_enabled %}
+                                    <p>Пользователь в настоящее время использует 2FA для входа.</p>
+                                    {% else %}
+                                    <p>Пользователь не использует 2FA для входа.</p>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <h4>Управление</h4>
+                                    
+                                    {% if target_user.is_2fa_enabled %}
+                                    <form method="post" action="/admin/users/{{ target_user.id }}/2fa/disable" onsubmit="return confirm('Вы уверены, что хотите отключить 2FA для этого пользователя?')">
+                                        <button type="submit" class="btn btn-danger">Отключить 2FA</button>
+                                    </form>
+                                    {% else %}
+                                    <form method="post" action="/admin/users/{{ target_user.id }}/2fa/enable">
+                                        <button type="submit" class="btn btn-success">Включить 2FA</button>
+                                    </form>
+                                    {% endif %}
+                                    
+                                    <br/>
+                                    <a href="/admin/users" class="btn btn-secondary">Назад к списку пользователей</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

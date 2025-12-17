@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+
+{% block title %}Приглашение недействительно - Parfume CRM{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-logo">
+            <h2>Parfume CRM</h2>
+        </div>
+        <h3 class="auth-title">Приглашение недействительно</h3>
+        <p class="auth-subtitle">{{ message }}</p>
+        
+        <div class="text-center mt-4">
+            <a href="/auth/login" class="btn btn-primary auth-button w-100">Войти в систему</a>
+        </div>
+        
+        <div class="auth-footer mt-4">
+            <a href="/auth/login" class="auth-link">Вернуться к входу</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
