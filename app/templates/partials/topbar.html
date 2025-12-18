@@ -1,0 +1,20 @@
+<div class="topbar border-bottom">
+  <div class="container-fluid px-3">
+    <div class="topbar-content d-flex align-items-center">
+      <button class="mobile-menu-toggle" type="button" aria-label="Открыть меню">
+        <i class="fas fa-bars"></i>
+      </button>
+      <h1 class="topbar-title mb-0 flex-grow-1">{% block page_title %}{% endblock %}</h1>
+      <div class="topbar-actions d-flex align-items-center gap-2">
+        {% if current_user %}
+        <div class="user-profile">
+          <div class="user-avatar" title="{{ current_user.username }}">
+            {{ current_user.username[0:2].upper() }}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
