@@ -141,6 +141,31 @@ docker-compose down -v
 docker-compose logs -f
 ```
 
+#### Обновление приложения на сервере
+
+Для обновления приложения без потери данных см. подробную инструкцию в [DEPLOYMENT.md](DEPLOYMENT.md)
+
+**Быстрое обновление:**
+```bash
+# Автоматическое обновление (рекомендуется)
+chmod +x update.sh
+./update.sh
+
+# Или вручную:
+# 1. Резервная копия БД
+docker-compose exec crm sqlite3 /app/data/crm.db ".backup /app/data/crm_backup_$(date +%Y%m%d_%H%M%S).db"
+
+# 2. Обновление кода
+git pull origin main
+
+# 3. Пересборка (если нужно)
+docker-compose build
+
+# 4. Применение миграций
+docker-compose up -d
+docker-compose exec crm alembic upgrade head
+```
+
 ## Безопасность
 
 - Двухфакторная аутентификация (2FA) включена по умолчанию для всех новых пользователей
