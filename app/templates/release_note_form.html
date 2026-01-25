@@ -142,6 +142,59 @@
 </div>
 {% endblock %}
 
-
-
-
+{% block scripts %}
+<script>
+async function createVersionAutomatically() {
+    const btn = document.getElementById('createVersionBtn');
+    if (!btn) return;
+    
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Создание...';
+    
+    const releaseType = document.getElementById('release_type').value;
+    const title = document.getElementById('title').value || null;
+    const description = document.getElementById('description').value || null;
+    const changes = document.getElementById('changes').value || null;
+    const isPublished = document.getElementById('is_published').checked;
+    const isPublishedToPartners = document.getElementById('is_published_to_partners').checked;
+    const isImportant = document.getElementById('is_important').checked;
+    const maxPartnerViews = document.getElementById('max_partner_views').value || null;
+    
+    try {
+        const response = await fetch('/release_notes/api/create_version', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                release_type: releaseType,
+                title: title,
+                description: description,
+                changes: changes,
+                is_published: isPublished,
+                is_published_to_partners: isPublishedToPartners,
+                is_important: isImportant,
+                max_partner_views: maxPartnerViews ? parseInt(maxPartnerViews) : null,
+                update_version_file: true
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            alert('Версия ' + data.version + ' успешно создана!');
+            window.location.href = '/release_notes/' + data.release_note_id;
+        } else {
+            alert('Ошибка: ' + (data.detail || 'Неизвестная ошибка'));
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    } catch (error) {
+        alert('Ошибка при создании версии: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+</script>
+{% endblock %}
