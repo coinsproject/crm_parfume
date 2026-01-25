@@ -706,8 +706,10 @@ class ReleaseNote(Base):
     changes = Column(Text, nullable=True)  # Можно хранить JSON с категориями: добавлено, изменено, исправлено
     
     # Флаги
-    is_published = Column(Boolean, default=True, nullable=False)  # Опубликован ли релиз
+    is_published = Column(Boolean, default=False, nullable=False)  # Опубликован ли релиз (для всех)
+    is_published_to_partners = Column(Boolean, default=False, nullable=False)  # Опубликован ли для партнеров
     is_important = Column(Boolean, default=False, nullable=False)  # Важное обновление (показывать уведомление)
+    max_partner_views = Column(Integer, nullable=True)  # Максимальное количество показов партнерам (None = без ограничений)
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)

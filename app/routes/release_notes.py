@@ -23,9 +23,16 @@ async def release_notes_list(
     db: Session = Depends(get_db),
 ):
     """Список релиз-ноутсов"""
-    release_notes = db.query(ReleaseNote).filter(
-        ReleaseNote.is_published == True
-    ).order_by(desc(ReleaseNote.release_date)).all()
+    # Для администратора показываем все релиз-ноуты, для остальных - только опубликованные
+    is_admin = getattr(current_user, "role", None) and current_user.role.name == "ADMIN"
+    
+    if is_admin:
+        release_notes = db.query(ReleaseNote).order_by(desc(ReleaseNote.release_date)).all()
+    else:
+        # Для партнеров показываем только опубликованные для них
+        release_notes = db.query(ReleaseNote).filter(
+            ReleaseNote.is_published_to_partners == True
+        ).order_by(desc(ReleaseNote.release_date)).all()
     
     return templates.TemplateResponse("release_notes_list.html", {
         "request": request,
@@ -33,6 +40,7 @@ async def release_notes_list(
         "release_notes": release_notes,
         "current_version": __version__,
         "active_menu": "release_notes",
+        "is_admin": is_admin,
     })
 
 
@@ -88,7 +96,9 @@ async def create_release_note(
     release_date: str = Form(...),
     changes: Optional[str] = Form(None),
     is_published: bool = Form(False),
+    is_published_to_partners: bool = Form(False),
     is_important: bool = Form(False),
+    max_partner_views: Optional[int] = Form(None),
     current_user: User = Depends(require_roles(["ADMIN"])),
     db: Session = Depends(get_db),
 ):
@@ -103,6 +113,14 @@ async def create_release_note(
     except ValueError:
         raise HTTPException(status_code=400, detail="Неверный формат даты")
     
+    # Обработка max_partner_views
+    max_views = None
+    if max_partner_views is not None:
+        try:
+            max_views = int(max_partner_views) if max_partner_views else None
+        except (ValueError, TypeError):
+            max_views = None
+    
     release_note = ReleaseNote(
         version=version,
         title=title,
@@ -111,15 +129,33 @@ async def create_release_note(
         release_date=release_date_obj,
         changes=changes,
         is_published=is_published,
+        is_published_to_partners=is_published_to_partners,
         is_important=is_important,
+        max_partner_views=max_views,
         created_by_user_id=current_user.id,
     )
     db.add(release_note)
     db.commit()
     db.refresh(release_note)
     
-    # Если это важное обновление и опубликовано, создаём уведомления для всех пользователей
-    if is_published and is_important:
+    # Если опубликовано для партнеров, создаём уведомления только для партнеров
+    if is_published_to_partners:
+        from app.models import Partner
+        partners = db.query(Partner).filter(Partner.is_active == True).all()
+        for partner in partners:
+            if partner.user_id:
+                notification = Notification(
+                    user_id=partner.user_id,
+                    type="system_update",
+                    title=f"Новая версия {version}",
+                    message=title,
+                    related_type="release_note",
+                    related_id=release_note.id,
+                )
+                db.add(notification)
+        db.commit()
+    # Если это важное обновление и опубликовано для всех, создаём уведомления для всех пользователей
+    elif is_published and is_important:
         users = db.query(User).all()
         for user in users:
             notification = Notification(
@@ -167,7 +203,9 @@ async def update_release_note(
     release_date: str = Form(...),
     changes: Optional[str] = Form(None),
     is_published: bool = Form(False),
+    is_published_to_partners: bool = Form(False),
     is_important: bool = Form(False),
+    max_partner_views: Optional[int] = Form(None),
     current_user: User = Depends(require_roles(["ADMIN"])),
     db: Session = Depends(get_db),
 ):
@@ -187,7 +225,16 @@ async def update_release_note(
     except ValueError:
         raise HTTPException(status_code=400, detail="Неверный формат даты")
     
-    # Проверяем, было ли это важное обновление до изменения
+    # Обработка max_partner_views
+    max_views = None
+    if max_partner_views is not None:
+        try:
+            max_views = int(max_partner_views) if max_partner_views else None
+        except (ValueError, TypeError):
+            max_views = None
+    
+    # Проверяем, было ли это опубликовано для партнеров до изменения
+    was_published_to_partners = release_note.is_published_to_partners
     was_important = release_note.is_important and release_note.is_published
     
     release_note.version = version
@@ -197,10 +244,27 @@ async def update_release_note(
     release_note.release_date = release_date_obj
     release_note.changes = changes
     release_note.is_published = is_published
+    release_note.is_published_to_partners = is_published_to_partners
     release_note.is_important = is_important
+    release_note.max_partner_views = max_views
     
-    # Если стало важным и опубликовано, создаём уведомления
-    if is_published and is_important and not was_important:
+    # Если стало опубликовано для партнеров и раньше не было, создаём уведомления для партнеров
+    if is_published_to_partners and not was_published_to_partners:
+        from app.models import Partner
+        partners = db.query(Partner).filter(Partner.is_active == True).all()
+        for partner in partners:
+            if partner.user_id:
+                notification = Notification(
+                    user_id=partner.user_id,
+                    type="system_update",
+                    title=f"Новая версия {version}",
+                    message=title,
+                    related_type="release_note",
+                    related_id=release_note.id,
+                )
+                db.add(notification)
+    # Если стало важным и опубликовано для всех, создаём уведомления
+    elif is_published and is_important and not was_important:
         users = db.query(User).all()
         for user in users:
             notification = Notification(

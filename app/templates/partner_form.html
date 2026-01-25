@@ -69,12 +69,7 @@
                 <h5 class="mb-3">Финансовые условия</h5>
                 <div class="row g-3">
                     <div class="col-md-4">
-                        <label class="form-label">Надбавка на прайс для партнёра, %</label>
-                        <input type="number" min="0" max="100" step="0.01" class="form-control {% if errors and errors.get('partner_price_markup_percent') %}is-invalid{% endif %}" name="partner_price_markup_percent" value="{{ (form.partner_price_markup_percent if form else None) or (partner.partner_price_markup_percent if partner and partner.partner_price_markup_percent is not none else 0) }}">
-                        {% if errors and errors.get('partner_price_markup_percent') %}<div class="invalid-feedback">{{ errors.get('partner_price_markup_percent') }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Наценка админа для клиента, %</label>
+                        <label class="form-label">Наценка админа, %</label>
                         <input type="number" min="0" max="100" step="0.01" class="form-control {% if errors and errors.get('admin_markup_percent') %}is-invalid{% endif %}" name="admin_markup_percent" value="{{ (form.admin_markup_percent if form else None) or (partner.admin_markup_percent if partner and partner.admin_markup_percent is not none else 0) }}">
                         {% if errors and errors.get('admin_markup_percent') %}<div class="invalid-feedback">{{ errors.get('admin_markup_percent') }}</div>{% endif %}
                     </div>

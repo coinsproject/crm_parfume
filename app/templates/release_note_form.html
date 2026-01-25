@@ -61,9 +61,27 @@
                                 <input class="form-check-input" type="checkbox" id="is_published" name="is_published" 
                                        {% if release_note and release_note.is_published %}checked{% endif %}>
                                 <label class="form-check-label" for="is_published">
-                                    Опубликовать
+                                    Опубликовать для всех пользователей
                                 </label>
                             </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_published_to_partners" name="is_published_to_partners" 
+                                       {% if release_note and release_note.is_published_to_partners %}checked{% endif %}>
+                                <label class="form-check-label" for="is_published_to_partners">
+                                    Опубликовать для партнеров
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="max_partner_views" class="form-label">Максимальное количество показов партнерам</label>
+                            <input type="number" class="form-control" id="max_partner_views" name="max_partner_views" 
+                                   value="{{ release_note.max_partner_views if release_note and release_note.max_partner_views else '' }}" 
+                                   min="1" placeholder="Оставьте пустым для неограниченного количества">
+                            <small class="form-text text-muted">Ограничение количества показов каждому партнеру. Оставьте пустым для неограниченного количества.</small>
                         </div>
                         
                         <div class="mb-3">
@@ -71,7 +89,7 @@
                                 <input class="form-check-input" type="checkbox" id="is_important" name="is_important" 
                                        {% if release_note and release_note.is_important %}checked{% endif %}>
                                 <label class="form-check-label" for="is_important">
-                                    Важное обновление (отправить уведомление всем пользователям)
+                                    Важное обновление (отправить уведомление)
                                 </label>
                             </div>
                         </div>
