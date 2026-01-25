@@ -39,30 +39,32 @@ mkdir -p "$BACKUP_DIR"
 BACKUP_FILE="$BACKUP_DIR/crm_backup_$(date +%Y%m%d_%H%M%S).db"
 
 if $DOCKER_COMPOSE ps 2>/dev/null | grep -q "crm.*Up"; then
-    # Контейнер запущен - создаем бэкап через контейнер
+    # Контейнер запущен - создаем бэкап через docker cp
     if $DOCKER_COMPOSE exec -T crm test -f /app/data/crm.db 2>/dev/null; then
-        $DOCKER_COMPOSE exec -T crm sqlite3 /app/data/crm.db ".backup /app/data/backup_temp.db" 2>/dev/null || \
-        docker cp crm:/app/data/crm.db "$BACKUP_FILE" 2>/dev/null || {
-            echo -e "${RED}Ошибка при создании резервной копии через контейнер${NC}"
-            exit 1
-        }
-        if [ -f "$BACKUP_FILE" ]; then
+        # Пробуем скопировать напрямую из контейнера
+        if docker cp crm:/app/data/crm.db "$BACKUP_FILE" 2>/dev/null; then
             echo -e "${GREEN}✓ Резервная копия создана: $BACKUP_FILE${NC}"
         else
-            # Копируем из контейнера
-            docker cp crm:/app/data/backup_temp.db "$BACKUP_FILE" 2>/dev/null || {
-                echo -e "${RED}Не удалось создать резервную копию${NC}"
-                exit 1
-            }
-            echo -e "${GREEN}✓ Резервная копия создана: $BACKUP_FILE${NC}"
+            echo -e "${YELLOW}Не удалось создать резервную копию через docker cp, пробуем альтернативный способ...${NC}"
+            # Альтернативный способ: через временный файл в контейнере
+            $DOCKER_COMPOSE exec -T crm sh -c "cp /app/data/crm.db /app/data/crm_backup_temp.db 2>/dev/null || true" 2>/dev/null
+            if docker cp crm:/app/data/crm_backup_temp.db "$BACKUP_FILE" 2>/dev/null; then
+                echo -e "${GREEN}✓ Резервная копия создана: $BACKUP_FILE${NC}"
+            else
+                echo -e "${YELLOW}⚠ Не удалось создать резервную копию, продолжаем без бэкапа${NC}"
+                echo -e "${YELLOW}Рекомендуется создать резервную копию вручную перед обновлением${NC}"
+            fi
         fi
     else
         echo -e "${YELLOW}База данных не найдена в контейнере, пропускаем бэкап${NC}"
     fi
 elif [ -f "./data/crm.db" ]; then
     # Контейнер не запущен, но БД есть локально
-    cp ./data/crm.db "$BACKUP_FILE"
-    echo -e "${GREEN}✓ Резервная копия создана: $BACKUP_FILE${NC}"
+    if cp ./data/crm.db "$BACKUP_FILE" 2>/dev/null; then
+        echo -e "${GREEN}✓ Резервная копия создана: $BACKUP_FILE${NC}"
+    else
+        echo -e "${YELLOW}⚠ Не удалось создать резервную копию, продолжаем без бэкапа${NC}"
+    fi
 else
     echo -e "${YELLOW}База данных не найдена, пропускаем бэкап${NC}"
 fi
