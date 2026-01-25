@@ -92,12 +92,14 @@ async def new_release_note_form(
     db: Session = Depends(get_db),
 ):
     """Форма создания нового релиз-ноутса"""
+    from datetime import date
     return templates.TemplateResponse("release_note_form.html", {
         "request": request,
         "current_user": current_user,
         "release_note": None,
         "current_version": __version__,
         "active_menu": "release_notes",
+        "current_date": date.today().strftime('%Y-%m-%d'),
     })
 
 

@@ -54,6 +54,20 @@ def from_json_filter(value):
 
 templates.env.filters["from_json"] = from_json_filter
 
+# Добавляем фильтр date для Jinja2
+from datetime import datetime
+def date_filter(value, format='%Y-%m-%d'):
+    """Фильтр Jinja2 для форматирования даты"""
+    if value == 'now':
+        return datetime.now().strftime(format)
+    if isinstance(value, datetime):
+        return value.strftime(format)
+    if isinstance(value, date):
+        return value.strftime(format)
+    return value
+
+templates.env.filters["date"] = date_filter
+
 # Добавляем версию в глобальный контекст шаблонов
 from app.version import __version__
 templates.env.globals["current_version"] = __version__

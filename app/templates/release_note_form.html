@@ -45,7 +45,7 @@
                         <div class="mb-3">
                             <label for="release_date" class="form-label">Дата релиза <span class="text-danger">*</span></label>
                             <input type="date" class="form-control" id="release_date" name="release_date" 
-                                   value="{% if release_note and release_note.release_date %}{{ release_note.release_date.strftime('%Y-%m-%d') }}{% else %}{{ 'now'|date('%Y-%m-%d') }}{% endif %}" 
+                                   value="{% if release_note and release_note.release_date %}{{ release_note.release_date.strftime('%Y-%m-%d') }}{% elif current_date %}{{ current_date }}{% endif %}" 
                                    required>
                         </div>
                         
