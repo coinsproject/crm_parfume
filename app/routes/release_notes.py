@@ -2,14 +2,21 @@
 from datetime import datetime, date
 from typing import Optional
 from fastapi import APIRouter, Depends, Request, HTTPException, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
+from pydantic import BaseModel
 
 from app.db import get_db
 from app.models import User, ReleaseNote, Notification, Partner
 from app.services.auth_service import require_permission, require_roles, get_current_user_from_cookie
+from app.services.version_service import (
+    create_version_and_release_note,
+    get_next_version,
+    get_latest_release_note,
+    increment_version,
+)
 from app.version import __version__
 
 router = APIRouter(prefix="/release_notes", tags=["release_notes"])

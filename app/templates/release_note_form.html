@@ -16,10 +16,25 @@
                     <form method="post" action="{% if release_note %}/release_notes/admin/{{ release_note.id }}/edit{% else %}/release_notes/admin/new{% endif %}">
                         <div class="mb-3">
                             <label for="version" class="form-label">Версия <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="version" name="version" 
-                                   value="{{ release_note.version if release_note else current_version }}" 
-                                   placeholder="1.0.0" required>
-                            <small class="form-text text-muted">Формат: X.Y.Z (например, 1.0.0)</small>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="version" name="version" 
+                                       value="{% if release_note %}{{ release_note.version }}{% elif next_version %}{{ next_version }}{% else %}{{ current_version }}{% endif %}" 
+                                       placeholder="1.0.0" required>
+                                {% if not release_note and next_version %}
+                                <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('version').value='{{ next_version }}'" title="Использовать следующую версию">
+                                    <i class="fas fa-magic"></i> Авто
+                                </button>
+                                {% endif %}
+                            </div>
+                            <small class="form-text text-muted">
+                                Формат: X.Y.Z (например, 1.0.0)
+                                {% if not release_note %}
+                                <br>Текущая версия: <strong>{{ current_version }}</strong>
+                                {% if next_version and next_version != current_version %}
+                                | Следующая: <strong>{{ next_version }}</strong>
+                                {% endif %}
+                                {% endif %}
+                            </small>
                         </div>
                         
                         <div class="mb-3">
@@ -94,8 +109,13 @@
                             </div>
                         </div>
                         
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-primary">Сохранить</button>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button type="submit" class="btn btn-primary">{% if release_note %}Сохранить{% else %}Создать{% endif %}</button>
+                            {% if not release_note %}
+                            <button type="button" class="btn btn-success" id="createVersionBtn" onclick="createVersionAutomatically()">
+                                <i class="fas fa-rocket"></i> Создать версию автоматически
+                            </button>
+                            {% endif %}
                             <a href="{% if release_note %}/release_notes/{{ release_note.id }}{% else %}/release_notes{% endif %}" class="btn btn-outline-secondary">Отмена</a>
                         </div>
                     </form>
