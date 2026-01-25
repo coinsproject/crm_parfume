@@ -10,11 +10,34 @@
                     <h5 class="card-title mb-1">Загрузка и статистика</h5>
                     <div class="text-muted small">Лист «Позиции», колонки: Артикул / Наименование / Цена</div>
                 </div>
-                <form action="/price/upload" method="post" enctype="multipart/form-data" class="d-flex align-items-center gap-3">
-                    <input type="file" name="file" accept=".xlsx" class="form-control" required style="max-width: 320px;">
-                    <button type="submit" class="btn btn-primary">Загрузить прайс</button>
+                <form id="uploadForm" action="/price/upload" method="post" enctype="multipart/form-data" class="d-flex align-items-center gap-3">
+                    <input type="file" name="file" accept=".xlsx" class="form-control" required style="max-width: 320px;" id="fileInput">
+                    <button type="submit" class="btn btn-primary" id="uploadBtn">Загрузить прайс</button>
+                    <button type="button" class="btn btn-danger" id="cancelBtn" style="display: none;">Отменить</button>
+                    {% if latest_upload %}
+                    <button type="button" class="btn btn-outline-primary" id="normalizeBtn" onclick="runNormalization({{ latest_upload.id }})">
+                        <i class="fas fa-magic me-2"></i>Прогнать нормализацию
+                    </button>
+                    {% endif %}
                     <a href="/price" class="btn btn-outline-secondary">Назад</a>
                 </form>
+            </div>
+            <div id="progressContainer" class="mt-3" {% if not (latest_upload and latest_upload.status == 'in_progress') %}style="display: none;"{% endif %}>
+                    <div class="progress" style="height: 25px;">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%">
+                            <span id="progressText">0%</span>
+                        </div>
+                    </div>
+                    <div class="mt-2 small text-muted">
+                        <span id="progressDetails">
+                            {% if latest_upload and latest_upload.status == 'in_progress' %}
+                                Обработано: {{ latest_upload.processed_rows or 0 }} из {{ latest_upload.total_rows or 0 }} строк
+                            {% else %}
+                                Обработано: 0 из 0 строк
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
             </div>
 
             {% if latest_upload %}
@@ -246,6 +269,334 @@ function toggleChangesList() {
     const block = document.getElementById('changes-list-block');
     if (!block) return;
     block.style.display = block.style.display === 'none' ? '' : 'none';
+}
+
+// Отслеживание прогресса загрузки
+let uploadId = null;
+let progressInterval = null;
+let isCheckingProgress = false; // Флаг для предотвращения одновременных запросов
+
+document.getElementById('uploadForm')?.addEventListener('submit', async function(e) {
+    const form = e.target;
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const progressDetails = document.getElementById('progressDetails');
+    
+    if (!fileInput.files.length) {
+        e.preventDefault();
+        return;
+    }
+    
+    // Показываем прогресс сразу
+    if (progressContainer) {
+        progressContainer.style.display = 'block';
+    }
+    if (progressBar && progressText && progressDetails) {
+        progressBar.style.width = '0%';
+        progressText.textContent = '0%';
+        progressDetails.textContent = 'Обработано: 0 из 0 строк';
+    }
+    uploadBtn.disabled = true;
+    if (cancelBtn) {
+        cancelBtn.style.display = 'inline-block';
+    }
+    
+    // Отправляем форму асинхронно
+    e.preventDefault();
+    
+    const formData = new FormData(form);
+    try {
+        // Запускаем загрузку и сразу начинаем отслеживать прогресс,
+        // не дожидаясь ответа (он приходит только после завершения загрузки).
+        const uploadRequest = fetch(form.action, {
+            method: 'POST',
+            body: formData
+        });
+        
+        console.log('Upload started, beginning progress tracking...');
+        startProgressTracking();
+        
+        uploadRequest.then((response) => {
+            if (!(response.ok || response.redirected)) {
+                alert('Ошибка загрузки файла');
+                resetProgress();
+            }
+        }).catch((error) => {
+            console.error('Upload error:', error);
+            alert('Ошибка загрузки файла');
+            resetProgress();
+        });
+    } catch (error) {
+        console.error('Upload error:', error);
+        alert('Ошибка загрузки файла');
+        resetProgress();
+    }
+});
+
+document.getElementById('cancelBtn')?.addEventListener('click', async function() {
+    if (!uploadId) {
+        // Пытаемся получить последний upload_id
+        try {
+            const response = await fetch('/price/upload/latest');
+            const data = await response.json();
+            if (data.id && data.status === 'in_progress') {
+                uploadId = data.id;
+            }
+        } catch (error) {
+            console.error('Error fetching latest upload:', error);
+        }
+    }
+    
+    if (uploadId) {
+        try {
+            const response = await fetch(`/price/upload/cancel/${uploadId}`, { method: 'POST' });
+            const data = await response.json();
+            if (data.status === 'cancelled') {
+                alert('Загрузка отменена');
+                resetProgress();
+            } else {
+                alert('Не удалось отменить загрузку: ' + (data.message || 'неизвестная ошибка'));
+            }
+        } catch (error) {
+            console.error('Error cancelling upload:', error);
+            alert('Ошибка при отмене загрузки');
+        }
+    } else {
+        // Проверяем, есть ли вообще активные загрузки
+        try {
+            const response = await fetch('/price/upload/latest');
+            if (!response.ok) {
+                alert('Не удалось проверить статус загрузки');
+                return;
+            }
+            const data = await response.json();
+            if (data.id && data.status === 'in_progress') {
+                uploadId = data.id;
+                // Повторяем попытку отмены
+                const cancelResponse = await fetch(`/price/upload/cancel/${uploadId}`, { method: 'POST' });
+                if (!cancelResponse.ok) {
+                    alert('Ошибка при отмене загрузки');
+                    return;
+                }
+                const cancelData = await cancelResponse.json();
+                if (cancelData.status === 'cancelled') {
+                    alert('Загрузка отменена');
+                    resetProgress();
+                } else {
+                    alert('Не удалось отменить загрузку');
+                }
+            } else {
+                alert('Активных загрузок не найдено');
+                resetProgress();
+            }
+        } catch (error) {
+            console.error('Error checking for active uploads:', error);
+            alert('Не удалось проверить статус загрузки');
+        }
+    }
+});
+
+function startProgressTracking() {
+    // Начинаем отслеживание прогресса
+    if (!progressInterval) {
+        progressInterval = setInterval(() => {
+            if (!isCheckingProgress) {
+                checkProgress();
+            }
+        }, 2000); // Увеличено с 1000мс до 2000мс для снижения нагрузки
+    }
+    checkProgress(); // Проверяем сразу
+}
+
+async function fetchLatestUpload() {
+    try {
+        const response = await fetch('/price/upload/latest');
+        if (!response.ok) {
+            console.warn('Failed to fetch latest upload:', response.status);
+            return;
+        }
+        const data = await response.json();
+        console.log('Latest upload data:', data);
+        
+        if (data.id && data.status === 'in_progress') {
+            uploadId = data.id;
+            console.log('Found active upload:', uploadId);
+            
+            // Показываем контейнер прогресса, если он скрыт
+            const progressContainer = document.getElementById('progressContainer');
+            if (progressContainer) {
+                progressContainer.style.display = 'block';
+            }
+            
+            // Обновляем данные сразу
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const progressDetails = document.getElementById('progressDetails');
+            
+            if (progressBar && progressText && progressDetails) {
+                const percent = Math.round(data.progress_percent || 0);
+                const processed = data.processed_rows || 0;
+                const total = data.total_rows || 0;
+                
+                progressBar.style.width = percent + '%';
+                progressText.textContent = percent + '%';
+                progressDetails.textContent = `Обработано: ${processed} из ${total} строк`;
+            }
+            
+            if (!progressInterval) {
+                progressInterval = setInterval(() => {
+                    if (!isCheckingProgress) {
+                        checkProgress();
+                    }
+                }, 2000); // Увеличено с 1000мс до 2000мс
+            }
+            checkProgress(); // Проверяем сразу
+        } else if (data.id && data.status !== 'in_progress') {
+            console.log('Upload is not in progress:', data.status);
+            resetProgress();
+        } else if (!data.id) {
+            console.log('No upload found');
+        }
+    } catch (error) {
+        console.error('Error fetching latest upload:', error);
+    }
+}
+
+async function checkProgress() {
+    if (!uploadId || isCheckingProgress) {
+        if (!uploadId) {
+            await fetchLatestUpload();
+        }
+        return; // Пропускаем, если нет uploadId или предыдущий запрос еще выполняется
+    }
+    isCheckingProgress = true;
+    try {
+        const response = await fetch(`/price/upload/status/${uploadId}`);
+        if (!response.ok) {
+            console.warn('Failed to fetch upload status:', response.status);
+            isCheckingProgress = false;
+            return;
+        }
+        const data = await response.json();
+        
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const progressDetails = document.getElementById('progressDetails');
+        
+        if (progressBar && progressText && progressDetails) {
+            const percent = Math.round(data.progress_percent || 0);
+            const processed = data.processed_rows || 0;
+            const total = data.total_rows || 0;
+            
+            progressBar.style.width = percent + '%';
+            progressText.textContent = percent + '%';
+            progressDetails.textContent = `Обработано: ${processed} из ${total} строк`;
+            
+            // Показываем контейнер, если он скрыт
+            const progressContainer = document.getElementById('progressContainer');
+            if (progressContainer) {
+                progressContainer.style.display = 'block';
+            }
+            
+            console.log(`Progress: ${percent}% (${processed}/${total})`);
+        }
+        
+        if (data.status !== 'in_progress') {
+            console.log('Upload finished with status:', data.status);
+            resetProgress();
+            if (data.status === 'done') {
+                setTimeout(() => location.reload(), 1000); // Перезагружаем страницу для отображения результатов
+            } else if (data.status === 'cancelled') {
+                alert('Загрузка отменена');
+            }
+        }
+    } catch (error) {
+        console.error('Error checking progress:', error);
+    } finally {
+        isCheckingProgress = false; // Сбрасываем флаг в любом случае
+    }
+}
+
+function resetProgress() {
+    document.getElementById('progressContainer').style.display = 'none';
+    document.getElementById('uploadBtn').disabled = false;
+    document.getElementById('cancelBtn').style.display = 'none';
+    if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+    }
+    uploadId = null;
+}
+
+// Проверяем, есть ли активная загрузка при загрузке страницы
+{% if latest_upload and latest_upload.status == 'in_progress' %}
+uploadId = {{ latest_upload.id }};
+// Показываем контейнер прогресса и обновляем данные
+const progressContainer = document.getElementById('progressContainer');
+const progressBar = document.getElementById('progressBar');
+const progressText = document.getElementById('progressText');
+const progressDetails = document.getElementById('progressDetails');
+const cancelBtn = document.getElementById('cancelBtn');
+const uploadBtn = document.getElementById('uploadBtn');
+
+if (progressContainer) {
+    progressContainer.style.display = 'block';
+}
+if (progressBar && progressText && progressDetails) {
+    const percent = Math.round({{ (latest_upload.progress_percent or 0) }});
+    progressBar.style.width = percent + '%';
+    progressText.textContent = percent + '%';
+    progressDetails.textContent = 'Обработано: {{ latest_upload.processed_rows or 0 }} из {{ latest_upload.total_rows or 0 }} строк';
+}
+if (cancelBtn) {
+    cancelBtn.style.display = 'inline-block';
+}
+if (uploadBtn) {
+    uploadBtn.disabled = true;
+}
+startProgressTracking();
+{% endif %}
+
+async function runNormalization(uploadId) {
+    const btn = document.getElementById('normalizeBtn');
+    if (!btn) return;
+    
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Нормализация...';
+    
+    try {
+        const formData = new FormData();
+        if (uploadId) {
+            formData.append('upload_id', uploadId);
+        }
+        formData.append('limit', '100');
+        
+        const response = await fetch('/price/normalize/batch', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`Нормализация выполнена:\nОбработано: ${data.processed}\nОшибок: ${data.errors || 0}\nВсего: ${data.total || 0}`);
+            // Перезагружаем страницу для обновления данных
+            window.location.reload();
+        } else {
+            alert('Ошибка нормализации: ' + (data.error || 'Неизвестная ошибка'));
+        }
+    } catch (error) {
+        console.error('Normalization error:', error);
+        alert('Ошибка при запуске нормализации: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
 }
 </script>
 {% endblock %}

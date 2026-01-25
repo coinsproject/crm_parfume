@@ -10,12 +10,15 @@
   <form method="post" action="{% if order %}/orders/{{ order.id }}/edit{% else %}/orders/{% endif %}">
     <div class="row mb-3">
       <div class="col-md-4">
-        <label class="form-label">Клиент</label>
-        <select class="form-select" name="client_id" required>
-          {% for c in clients %}
-          <option value="{{ c.id }}" {% if order and order.client_id == c.id %}selected{% endif %}>{{ c.name }}</option>
-          {% endfor %}
-        </select>
+        <label class="form-label">Клиент *</label>
+        <div class="position-relative">
+          <input type="hidden" name="client_id" id="client_id" value="{% if order %}{{ order.client_id }}{% elif selected_client %}{{ selected_client.id }}{% endif %}" required>
+          <input type="text" class="form-control" id="client-search" placeholder="Начните вводить имя или телефон..." autocomplete="off" value="{% if order and order.client %}{{ order.client.name }}{% elif selected_client %}{{ selected_client.name }}{% endif %}">
+          <div class="dropdown-menu w-100" id="client-dropdown" style="max-height: 300px; overflow-y: auto; display: none;">
+            <div class="list-group list-group-flush" id="client-results"></div>
+          </div>
+        </div>
+        <a href="/clients/new?return_to={% if order %}/orders/{{ order.id }}/edit{% else %}/orders/new{% endif %}" class="btn btn-sm btn-outline-primary mt-1">+ Создать клиента</a>
       </div>
 
       <div class="col-md-4">
@@ -45,8 +48,36 @@
       </div>
     </div>
 
-    <div class="table-responsive">
-      <table class="table table-bordered align-middle" id="items-table">
+    <div class="row mb-3">
+      <div class="col-md-4">
+        <label class="form-label">Способ оплаты</label>
+        <select class="form-select" name="payment_method">
+          <option value="">-</option>
+          <option value="SBP" {% if order and order.payment_method == 'SBP' %}selected{% endif %}>СБП</option>
+          <option value="card" {% if order and order.payment_method == 'card' %}selected{% endif %}>Карта</option>
+          <option value="cash" {% if order and order.payment_method == 'cash' %}selected{% endif %}>Наличные</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Тип доставки</label>
+        <select class="form-select" name="delivery_type">
+          <option value="">-</option>
+          <option value="CDEK" {% if order and order.delivery_type == 'CDEK' %}selected{% endif %}>CDEK</option>
+          <option value="Почта" {% if order and order.delivery_type == 'Почта' %}selected{% endif %}>Почта</option>
+          <option value="Курьер" {% if order and order.delivery_type == 'Курьер' %}selected{% endif %}>Курьер</option>
+          <option value="Самовывоз" {% if order and order.delivery_type == 'Самовывоз' %}selected{% endif %}>Самовывоз</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Трекинг-номер</label>
+        <input type="text" class="form-control" name="delivery_tracking" value="{% if order %}{{ order.delivery_tracking or '' }}{% endif %}" placeholder="Трекинг-номер">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-12">
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle" id="items-table">
         <thead>
           <tr>
             <th style="width: 34%;">Товар (из прайса)</th>
@@ -67,11 +98,8 @@
           {% for it in items %}
           <tr class="item-row">
             <td>
-              <div class="d-flex gap-2">
-                <input type="hidden" name="price_product_ids" value="{{ it.price_product_id if it else selected_price_product_id or '' }}">
-                <input type="text" class="form-control price-label" value="{% if it and it.price_product %}{{ it.price_product.external_article }} - {{ it.price_product.brand }} {{ it.price_product.product_name or '' }}{% endif %}" placeholder="Выберите позицию" readonly>
-                <button type="button" class="btn btn-outline-secondary btn-sm choose-price-product" data-bs-toggle="modal" data-bs-target="#priceModal">Выбрать</button>
-              </div>
+              <input type="hidden" name="price_product_ids" value="{{ it.price_product_id if it else selected_price_product_id or '' }}">
+              <input type="text" class="form-control price-label" value="{% if it and it.price_product %}{{ it.price_product.external_article }} - {{ it.price_product.brand }} {{ it.price_product.product_name or '' }}{% endif %}" placeholder="Добавьте товар из прайса" readonly>
             </td>
             <td><input type="number" min="1" class="form-control qty" name="quantities" value="{{ it.qty if it else 1 }}"></td>
             {% if can_view_client_price %}
@@ -79,10 +107,10 @@
             <td><input type="text" class="form-control line-client-amount" value="{{ it.line_client_amount if it else '' }}" readonly></td>
             {% endif %}
             {% if can_view_cost %}
-            <td><input type="text" class="form-control" value="{{ it.cost_for_owner if it else '' }}" readonly></td>
+            <td><input type="text" class="form-control line-cost-amount" value="{{ it.line_cost_amount if it else '' }}" readonly></td>
             {% endif %}
             {% if can_view_margin %}
-            <td><input type="text" class="form-control" value="{{ it.line_margin if it else '' }}" readonly></td>
+            <td><input type="text" class="form-control line-margin" value="{{ it.line_margin if it else '' }}" readonly></td>
             {% endif %}
             <td><input type="number" step="0.01" min="0" class="form-control discount" name="discounts" value="{{ it.discount if it else 0 }}"></td>
             <td><button type="button" class="btn btn-outline-danger btn-sm remove-row">✕</button></td>
@@ -92,8 +120,64 @@
       </table>
     </div>
 
-    <div class="d-flex gap-2 mb-3">
-      <button type="button" class="btn btn-outline-primary btn-sm" id="add-from-price" data-bs-toggle="modal" data-bs-target="#priceModal">Добавить из прайса</button>
+        <div class="d-flex gap-2 mb-3">
+          <button type="button" class="btn btn-outline-primary btn-sm" id="add-from-price" data-bs-toggle="modal" data-bs-target="#priceModal">Добавить из прайса</button>
+        </div>
+
+        <!-- Итоги заказа -->
+        <div class="card mb-3">
+          <div class="card-body">
+            <div class="row align-items-center">
+              <div class="col-auto">
+                <strong>Итоги заказа:</strong>
+              </div>
+              {% if can_view_client_price %}
+              <div class="col-auto">
+                <span class="text-muted small">Сумма для клиента:</span>
+                <strong class="ms-1" id="total-client-amount">{% if order %}{{ order.total_client_amount or 0 }}{% else %}0.00{% endif %}</strong>
+              </div>
+              {% endif %}
+              {% if can_view_cost %}
+              <div class="col-auto">
+                <span class="text-muted small">Себестоимость:</span>
+                <strong class="ms-1" id="total-cost-amount">{% if order %}{{ order.total_cost_for_owner or 0 }}{% else %}0.00{% endif %}</strong>
+              </div>
+              {% endif %}
+              {% if can_view_margin %}
+              <div class="col-auto">
+                <span class="text-muted small">Маржа:</span>
+                <strong class="ms-1" id="total-margin-amount">{% if order %}{{ order.total_margin_for_owner or 0 }}{% else %}0.00{% endif %}</strong>
+                <span class="text-muted small ms-1" id="total-margin-percent">
+                  {% if order and order.partner_id %}
+                    {% if order.total_margin_percent is not none %}
+                      ({{ "%.2f"|format(order.total_margin_percent) }}%)
+                    {% endif %}
+                  {% elif order and order.total_margin_percent %}
+                    ({{ "%.2f"|format(order.total_margin_percent) }}%)
+                  {% endif %}
+                </span>
+                <input type="hidden" id="total-admin-margin-amount" value="{% if order %}{{ order.total_admin_margin or 0 }}{% else %}0{% endif %}">
+                <input type="hidden" id="total-partner-margin-amount" value="{% if order %}{{ order.total_partner_margin or 0 }}{% else %}0{% endif %}">
+                <input type="hidden" id="total-admin-margin-percent-value" value="{% if order and order.total_admin_margin_percent is not none %}{{ order.total_admin_margin_percent }}{% else %}0{% endif %}">
+                <input type="hidden" id="total-partner-margin-percent-value" value="{% if order and order.total_partner_margin_percent is not none %}{{ order.total_partner_margin_percent }}{% else %}0{% endif %}">
+              </div>
+              {% endif %}
+            </div>
+            {% if can_view_margin and order and order.partner_id %}
+            <div class="row mt-2">
+              <div class="col-12">
+                <div class="text-muted small" id="total-margin-details">
+                  {% if order.total_admin_margin_percent is not none and order.total_partner_margin_percent is not none %}
+                    <span>Админ: {{ order.total_admin_margin or 0 }} ({{ "%.2f"|format(order.total_admin_margin_percent) }}%)</span>
+                    <span class="ms-3">Партнер: {{ order.total_partner_margin or 0 }} ({{ "%.2f"|format(order.total_partner_margin_percent) }}%)</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="text-end">
@@ -106,17 +190,14 @@
 <template id="item-row-template">
   <tr class="item-row">
     <td>
-      <div class="d-flex gap-2">
-        <input type="hidden" name="price_product_ids" value="">
-        <input type="text" class="form-control price-label" value="" placeholder="Выберите позицию" readonly>
-        <button type="button" class="btn btn-outline-secondary btn-sm choose-price-product" data-bs-toggle="modal" data-bs-target="#priceModal">Выбрать</button>
-      </div>
+      <input type="hidden" name="price_product_ids" value="">
+      <input type="text" class="form-control price-label" value="" placeholder="Добавьте товар из прайса" readonly>
     </td>
     <td><input type="number" min="1" class="form-control qty" name="quantities" value="1"></td>
     {% if can_view_client_price %}<td><input type="text" class="form-control unit-client-price" value="" readonly></td>{% endif %}
     {% if can_view_client_price %}<td><input type="text" class="form-control line-client-amount" value="" readonly></td>{% endif %}
-    {% if can_view_cost %}<td><input type="text" class="form-control" value="" readonly></td>{% endif %}
-    {% if can_view_margin %}<td><input type="text" class="form-control" value="" readonly></td>{% endif %}
+    {% if can_view_cost %}<td><input type="text" class="form-control line-cost-amount" value="" readonly></td>{% endif %}
+    {% if can_view_margin %}<td><input type="text" class="form-control line-margin" value="" readonly></td>{% endif %}
     <td><input type="number" step="0.01" min="0" class="form-control discount" name="discounts" value="0"></td>
     <td><button type="button" class="btn btn-outline-danger btn-sm remove-row">✕</button></td>
   </tr>
@@ -133,26 +214,24 @@
         <div class="row g-2 align-items-end mb-3">
           <div class="col-md-6">
             <label class="form-label">Поиск</label>
-            <input type="text" class="form-control" id="price-search-q" placeholder="byredo помада 3 г">
+            <input type="text" class="form-control" id="price-search-q" placeholder="Введите название, артикул или бренд для поиска...">
           </div>
           <div class="col-md-2">
             <button type="button" class="btn btn-primary w-100" id="price-search-btn">Найти</button>
           </div>
         </div>
-        <div class="table-responsive" style="max-height: 420px;">
+        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
           <table class="table table-sm align-middle" id="price-search-results">
-            <thead class="table-light">
+            <thead class="table-light sticky-top">
               <tr>
                 <th>Артикул</th>
-                <th>Название</th>
-                <th>Бренд</th>
-                <th>Объем</th>
-                {% if can_view_client_price or can_view_cost %}<th>Цена</th>{% endif %}
-                <th></th>
+                <th>Наименование</th>
+                {% if can_view_client_price or can_view_cost %}<th>Цена по прайсу</th>{% endif %}
+                <th style="width: 100px;"></th>
               </tr>
             </thead>
             <tbody>
-              <tr><td colspan="6" class="text-muted">Введите запрос и нажмите &lt;Найти&gt;</td></tr>
+              <tr><td colspan="{% if can_view_client_price or can_view_cost %}4{% else %}3{% endif %}" class="text-muted text-center">Введите запрос для поиска</td></tr>
             </tbody>
           </table>
         </div>
@@ -203,41 +282,85 @@
         const row = e.target.closest(".item-row");
         if (row && tbody.children.length > 1) {
           row.remove();
+          recalcTotals();
         }
-      }
-      if (e.target.classList.contains("choose-price-product")) {
-        activeRow = e.target.closest(".item-row");
       }
     });
 
-    addFromPriceBtn?.addEventListener("click", () => {
+    // При открытии модального окна загружаем товары автоматически (с пустым запросом показываем первые товары)
+    addFromPriceBtn?.addEventListener("click", async (e) => {
       activeRow = null;
+      // Очищаем поле поиска
+      if (searchInput) searchInput.value = "";
+      // Запускаем загрузку с пустым запросом (покажем первые товары)
+      setTimeout(() => runPriceSearch(), 100);
     });
 
     async function runPriceSearch() {
-      const q = searchInput.value || "";
-      resultsBody.innerHTML = '<tr><td colspan="6">Поиск...</td></tr>';
+      const q = (searchInput.value || "").trim();
+      const colCount = {% if can_view_client_price or can_view_cost %}4{% else %}3{% endif %};
+      
+      resultsBody.innerHTML = `<tr><td colspan="${colCount}" class="text-muted text-center">Загрузка...</td></tr>`;
       try {
-        const resp = await fetch(`/orders/api/price_search?q=${encodeURIComponent(q)}&page_size=10`);
-        const data = await resp.json();
-        if (!Array.isArray(data) || data.length === 0) {
-          resultsBody.innerHTML = '<tr><td colspan="6" class="text-muted">Ничего не найдено</td></tr>';
+        // Получаем client_id и partner_id из формы
+        const clientId = form?.querySelector('select[name="client_id"]')?.value || form?.querySelector('input[name="client_id"]')?.value || '';
+        const partnerId = partnerSelect?.value || partnerInput?.value || '';
+        
+        const params = new URLSearchParams({
+          q: q || "",  // Пустой запрос допустим - покажем первые товары
+          page_size: '50'  // Увеличиваем количество товаров на странице
+        });
+        if (clientId) params.append('client_id', clientId);
+        if (partnerId) params.append('partner_id', partnerId);
+        
+        const resp = await fetch(`/orders/api/price_search?${params.toString()}`);
+        
+        // Проверяем статус ответа
+        if (!resp.ok) {
+          const errorData = await resp.json().catch(() => ({ detail: `HTTP ${resp.status}: ${resp.statusText}` }));
+          console.error("Ошибка ответа сервера:", errorData);
+          resultsBody.innerHTML = `<tr><td colspan="${colCount}" class="text-danger text-center">Ошибка: ${errorData.detail || `HTTP ${resp.status}`}</td></tr>`;
           return;
         }
+        
+        const data = await resp.json();
+        
+        // Проверяем, что данные - массив
+        if (!Array.isArray(data)) {
+          console.error("Неожиданный формат данных:", data);
+          resultsBody.innerHTML = `<tr><td colspan="${colCount}" class="text-danger text-center">Ошибка: неверный формат данных</td></tr>`;
+          return;
+        }
+        
+        if (data.length === 0) {
+          resultsBody.innerHTML = `<tr><td colspan="${colCount}" class="text-muted text-center">Ничего не найдено</td></tr>`;
+          return;
+        }
+        
         const includePrice = {% if can_view_client_price or can_view_cost %}true{% else %}false{% endif %};
         resultsBody.innerHTML = data.map(item => {
-          const priceCell = includePrice ? `<td>${item.base_price ?? ""}</td>` : "";
+          // Формируем полное наименование как на втором скриншоте (используем raw_name если есть, иначе собираем из полей)
+          let fullName = item.raw_name || "";
+          if (!fullName) {
+            const parts = [];
+            if (item.brand) parts.push(item.brand);
+            if (item.product_name) parts.push(item.product_name);
+            if (item.volume_value) {
+              parts.push(`${item.volume_value} ${item.volume_unit || "мл"}`);
+            }
+            fullName = parts.join(" ");
+          }
+          const priceCell = includePrice ? `<td>${item.base_price ? parseFloat(item.base_price).toFixed(2) : ""}</td>` : "";
           return `<tr>
             <td>${item.external_article || ""}</td>
-            <td>${item.product_name || ""}</td>
-            <td>${item.brand || ""}</td>
-            <td>${item.volume_value || ""} ${item.volume_unit || ""}</td>
+            <td>${fullName}</td>
             ${priceCell}
-            <td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary select-price-product" data-id="${item.id}" data-label="${item.external_article || ""} - ${item.brand || ""} ${item.product_name || ""}" data-price="${item.base_price ?? ""}">Выбрать</button></td>
+            <td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary select-price-product" data-id="${item.id}" data-label="${item.external_article || ""} - ${fullName}" data-price="${item.base_price ?? ""}">Выбрать</button></td>
           </tr>`;
         }).join("");
       } catch (err) {
-        resultsBody.innerHTML = '<tr><td colspan="6" class="text-danger">Ошибка поиска</td></tr>';
+        console.error("Ошибка поиска:", err);
+        resultsBody.innerHTML = `<tr><td colspan="${colCount}" class="text-danger text-center">Ошибка загрузки товаров: ${err.message || "Неизвестная ошибка"}</td></tr>`;
       }
     }
 
@@ -248,6 +371,22 @@
         runPriceSearch();
       }
     });
+
+    // При изменении client_id или partner_id перезапускаем поиск, если модальное окно открыто
+    const form = document.querySelector('form');
+    const clientSelect = form?.querySelector('select[name="client_id"]');
+    const partnerSelect = form?.querySelector('select[name="partner_id"]');
+    const partnerInput = form?.querySelector('input[name="partner_id"]');
+    
+    function refreshSearchIfModalOpen() {
+      const modal = bootstrap.Modal.getInstance(modalEl);
+      if (modal && modal._isShown && searchInput.value) {
+        runPriceSearch();
+      }
+    }
+    
+    clientSelect?.addEventListener("change", refreshSearchIfModalOpen);
+    partnerSelect?.addEventListener("change", refreshSearchIfModalOpen);
 
     resultsBody?.addEventListener("click", (e) => {
       if (!e.target.classList.contains("select-price-product")) return;
@@ -268,8 +407,31 @@
       const unitInput = row.querySelector(".unit-client-price");
       if (hiddenInput) hiddenInput.value = id || "";
       if (labelInput) labelInput.value = label || "";
-      if (unitInput && price !== null && price !== undefined && price !== "") {
-        unitInput.value = String(price);
+      
+      // Если цена не передана, загружаем её автоматически с учетом клиента и партнера
+      if (unitInput) {
+        if (price !== null && price !== undefined && price !== "") {
+          unitInput.value = String(price);
+        } else {
+          // Загружаем цену с учетом клиента и партнера
+          const clientId = clientIdInput?.value || '';
+          const partnerId = partnerSelect?.value || partnerInput?.value || '';
+          
+          if (clientId && id) {
+            const params = new URLSearchParams();
+            if (clientId) params.append('client_id', clientId);
+            if (partnerId) params.append('partner_id', partnerId);
+            fetch(`/orders/api/price_product/${encodeURIComponent(id)}${params.toString() ? '?' + params.toString() : ''}`)
+              .then(resp => resp.ok ? resp.json() : null)
+              .then(item => {
+                if (item && item.base_price !== null && item.base_price !== undefined) {
+                  unitInput.value = String(item.base_price);
+                  recalcRow(row);
+                }
+              })
+              .catch(e => console.error("Ошибка загрузки цены:", e));
+          }
+        }
       }
       recalcRow(row);
 
@@ -291,7 +453,16 @@
       if (labelInput && labelInput.value) return;
 
       try {
-        const resp = await fetch(`/orders/api/price_product/${encodeURIComponent(id)}`);
+        // Получаем client_id и partner_id из формы
+        const clientId = form?.querySelector('select[name="client_id"]')?.value || '';
+        const partnerId = partnerSelect?.value || partnerInput?.value || '';
+        
+        const params = new URLSearchParams();
+        if (clientId) params.append('client_id', clientId);
+        if (partnerId) params.append('partner_id', partnerId);
+        
+        const url = `/orders/api/price_product/${encodeURIComponent(id)}${params.toString() ? '?' + params.toString() : ''}`;
+        const resp = await fetch(url);
         if (!resp.ok) return;
         const item = await resp.json();
         if (labelInput) labelInput.value = `${item.external_article || ""} - ${item.brand || ""} ${item.product_name || ""}`.trim();
@@ -301,6 +472,215 @@
     }
 
     hydratePrefilledRow();
+
+    // Поиск клиентов
+    const clientSearch = document.getElementById("client-search");
+    const clientIdInput = document.getElementById("client_id");
+    const clientDropdown = document.getElementById("client-dropdown");
+    const clientResults = document.getElementById("client-results");
+    let clientSearchTimeout = null;
+
+    async function loadClients(searchQuery = "") {
+      try {
+        const resp = await fetch(`/orders/api/client_search?q=${encodeURIComponent(searchQuery)}&page_size=500`);
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+        }
+        const data = await resp.json();
+        if (Array.isArray(data) && data.length > 0) {
+          clientResults.innerHTML = data.map(c => `
+            <button type="button" class="list-group-item list-group-item-action" data-id="${c.id}" data-name="${c.name}">
+              <div class="fw-semibold">${c.name}</div>
+              ${c.phone ? `<div class="text-muted small">${c.phone}</div>` : ''}
+              ${c.city ? `<div class="text-muted small">${c.city}</div>` : ''}
+            </button>
+          `).join("");
+          clientDropdown.style.display = "block";
+        } else {
+          clientResults.innerHTML = '<div class="list-group-item text-muted">Ничего не найдено</div>';
+          clientDropdown.style.display = "block";
+        }
+      } catch (err) {
+        console.error("Ошибка загрузки клиентов:", err);
+        clientResults.innerHTML = `<div class="list-group-item text-danger">Ошибка загрузки клиентов: ${err.message}</div>`;
+        clientDropdown.style.display = "block";
+      }
+    }
+
+    if (clientSearch && clientIdInput) {
+      // При фокусе или клике показываем всех клиентов
+      clientSearch.addEventListener("focus", (e) => {
+        e.stopPropagation();
+        loadClients("");
+      });
+
+      clientSearch.addEventListener("click", (e) => {
+        e.stopPropagation();
+        loadClients("");
+      });
+
+      // При вводе текста фильтруем
+      clientSearch.addEventListener("input", (e) => {
+        const q = e.target.value.trim();
+        
+        clearTimeout(clientSearchTimeout);
+        clientSearchTimeout = setTimeout(() => {
+          loadClients(q);
+        }, 300);
+      });
+
+      clientResults?.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-id]");
+        if (btn) {
+          const id = btn.getAttribute("data-id");
+          const name = btn.getAttribute("data-name");
+          clientIdInput.value = id;
+          clientSearch.value = name;
+          clientDropdown.style.display = "none";
+          // Автоматически пересчитываем цены при выборе клиента
+          recalcAllPrices();
+        }
+      });
+
+      document.addEventListener("click", (e) => {
+        if (clientSearch && clientDropdown && !clientSearch.contains(e.target) && !clientDropdown.contains(e.target)) {
+          clientDropdown.style.display = "none";
+        }
+      });
+    }
+
+    // Проверяем, есть ли client_id в URL (возврат после создания клиента)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlClientId = urlParams.get('client_id');
+    if (urlClientId && clientIdInput && clientSearch) {
+      // Загружаем информацию о клиенте через поиск
+      fetch(`/orders/api/client_search?q=&page_size=100`)
+        .then(resp => resp.json())
+        .then(data => {
+          const client = data.find(c => c.id == parseInt(urlClientId));
+          if (client) {
+            clientIdInput.value = client.id;
+            clientSearch.value = client.name;
+            // Очищаем параметр из URL
+            urlParams.delete('client_id');
+            const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+            window.history.replaceState({}, '', newUrl);
+          }
+        })
+        .catch(err => console.error("Ошибка загрузки клиента:", err));
+    }
+
+    // Пересчет итогов
+    function recalcTotals() {
+      let totalClient = 0;
+      let totalCost = 0;
+      document.querySelectorAll(".item-row").forEach(row => {
+        const clientAmount = toNum(row.querySelector(".line-client-amount")?.value);
+        const costAmount = toNum(row.querySelector(".line-cost-amount")?.value);
+        totalClient += clientAmount;
+        totalCost += costAmount;
+      });
+      const totalMargin = totalClient - totalCost;
+      // Процент маржи считается от себестоимости, а не от конечной суммы
+      const marginPercent = totalCost > 0 ? (totalMargin / totalCost * 100) : 0;
+      
+      const totalClientEl = document.getElementById("total-client-amount");
+      const totalCostEl = document.getElementById("total-cost-amount");
+      const totalMarginEl = document.getElementById("total-margin-amount");
+      const totalMarginPercentEl = document.getElementById("total-margin-percent");
+      
+      if (totalClientEl) totalClientEl.textContent = totalClient.toFixed(2);
+      if (totalCostEl) totalCostEl.textContent = totalCost.toFixed(2);
+      if (totalMarginEl) totalMarginEl.textContent = totalMargin.toFixed(2);
+      // Проверяем, есть ли партнер
+      const partnerId = document.querySelector('select[name="partner_id"]')?.value;
+      const totalAdminMarginEl = document.getElementById("total-admin-margin-amount");
+      const totalAdminMarginPercentEl = document.getElementById("total-admin-margin-percent");
+      const totalPartnerMarginEl = document.getElementById("total-partner-margin-amount");
+      const totalPartnerMarginPercentEl = document.getElementById("total-partner-margin-percent");
+      
+      if (totalMarginPercentEl) {
+        if (partnerId && partnerId !== '') {
+          // Есть партнер: получаем суммы и проценты из скрытых полей
+          const totalAdminMarginEl = document.getElementById("total-admin-margin-amount");
+          const totalPartnerMarginEl = document.getElementById("total-partner-margin-amount");
+          const totalAdminMarginPercentEl = document.getElementById("total-admin-margin-percent-value");
+          const totalPartnerMarginPercentEl = document.getElementById("total-partner-margin-percent-value");
+          
+          const adminMargin = parseFloat(totalAdminMarginEl?.value || 0);
+          const partnerMargin = parseFloat(totalPartnerMarginEl?.value || 0);
+          const adminMarginPercent = parseFloat(totalAdminMarginPercentEl?.value || 0);
+          const partnerMarginPercent = parseFloat(totalPartnerMarginPercentEl?.value || 0);
+          const totalMarginPercent = adminMarginPercent + partnerMarginPercent;
+          
+          let html = '';
+          if (totalMarginPercent > 0) {
+            html += `(${totalMarginPercent.toFixed(2)}%)`;
+          }
+          totalMarginPercentEl.textContent = html || '';
+          
+          // Обновляем детали маржи
+          const marginDetailsEl = document.getElementById("total-margin-details");
+          if (marginDetailsEl && adminMarginPercent > 0 && partnerMarginPercent > 0) {
+            marginDetailsEl.innerHTML = `<span>Админ: ${adminMargin.toFixed(2)} (${adminMarginPercent.toFixed(2)}%)</span><span class="ms-3">Партнер: ${partnerMargin.toFixed(2)} (${partnerMarginPercent.toFixed(2)}%)</span>`;
+          } else if (marginDetailsEl) {
+            marginDetailsEl.innerHTML = '';
+          }
+        } else {
+          // Нет партнера: показываем общий процент от себестоимости
+          totalMarginPercentEl.textContent = `(${marginPercent.toFixed(2)}%)`;
+          const marginDetailsEl = document.getElementById("total-margin-details");
+          if (marginDetailsEl) marginDetailsEl.innerHTML = '';
+        }
+      }
+    }
+
+    // Обновляем recalcRow для пересчета итогов
+    const originalRecalcRowFn = recalcRow;
+    recalcRow = function(row) {
+      originalRecalcRowFn(row);
+      recalcTotals();
+    };
+
+    // Автоматический пересчет при изменении клиента или партнера
+    async function recalcAllPrices() {
+      const clientId = clientIdInput?.value || '';
+      const partnerId = partnerSelect?.value || partnerInput?.value || '';
+      
+      if (!clientId) return;
+
+      const rows = document.querySelectorAll(".item-row");
+      for (const row of rows) {
+        const productId = row.querySelector('input[name="price_product_ids"]')?.value;
+        if (!productId) continue;
+
+        const unitInput = row.querySelector(".unit-client-price");
+        if (!unitInput) continue;
+
+        try {
+          const params = new URLSearchParams();
+          if (clientId) params.append('client_id', clientId);
+          if (partnerId) params.append('partner_id', partnerId);
+          const url = `/orders/api/price_product/${encodeURIComponent(productId)}${params.toString() ? '?' + params.toString() : ''}`;
+          const resp = await fetch(url);
+          if (resp.ok) {
+            const item = await resp.json();
+            if (item.base_price !== null && item.base_price !== undefined) {
+              unitInput.value = String(item.base_price);
+              recalcRow(row);
+            }
+          }
+        } catch (e) {
+          console.error("Ошибка пересчета цены:", e);
+        }
+      }
+    }
+    
+    clientIdInput?.addEventListener("change", recalcAllPrices);
+    partnerSelect?.addEventListener("change", recalcAllPrices);
+
+    // Инициализация итогов
+    recalcTotals();
   });
 </script>
 {% endblock %}

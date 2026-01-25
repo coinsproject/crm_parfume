@@ -1,0 +1,71 @@
+{% extends "layout.html" %}
+{% block title %}Создать запрос на закупку{% endblock %}
+{% block page_title %}Создать запрос на закупку{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-body">
+            <form method="post" action="/purchase_requests/">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Ожидаемая дата получения</label>
+                        <input type="date" class="form-control" name="expected_delivery_date">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Заметки</label>
+                        <textarea class="form-control" name="notes" rows="3"></textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Добавить заказы</label>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th><input type="checkbox" id="select-all"></th>
+                                        <th>ID</th>
+                                        <th>Клиент</th>
+                                        <th>Сумма</th>
+                                        <th>Дата</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for order in available_orders %}
+                                    <tr>
+                                        <td><input type="checkbox" name="order_ids" value="{{ order.id }}"></td>
+                                        <td>#{{ order.id }}</td>
+                                        <td>{{ order.client.name if order.client else '-' }}</td>
+                                        <td>{{ order.total_client_amount or order.total_amount }}</td>
+                                        <td>{{ order.created_at.strftime('%d.%m.%Y') if order.created_at else '-' }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-muted">Нет доступных заказов</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">Создать запрос</button>
+                        <a href="/purchase_requests" class="btn btn-outline-secondary">Отмена</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+document.getElementById('select-all')?.addEventListener('change', function(e) {
+    const checkboxes = document.querySelectorAll('input[name="order_ids"]');
+    checkboxes.forEach(cb => cb.checked = e.target.checked);
+});
+</script>
+{% endblock %}
+
+
+
+
+
+
+

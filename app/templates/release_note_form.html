@@ -1,0 +1,109 @@
+{% extends "layout.html" %}
+
+{% block title %}{% if release_note %}Редактировать{% else %}Создать{% endif %} релиз-ноутс{% endblock %}
+
+{% block page_title %}{% if release_note %}Редактировать{% else %}Создать{% endif %} релиз-ноутс{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">{% if release_note %}Редактировать{% else %}Создать{% endif %} релиз-ноутс</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% if release_note %}/release_notes/admin/{{ release_note.id }}/edit{% else %}/release_notes/admin/new{% endif %}">
+                        <div class="mb-3">
+                            <label for="version" class="form-label">Версия <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="version" name="version" 
+                                   value="{{ release_note.version if release_note else current_version }}" 
+                                   placeholder="1.0.0" required>
+                            <small class="form-text text-muted">Формат: X.Y.Z (например, 1.0.0)</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Заголовок <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="title" name="title" 
+                                   value="{{ release_note.title if release_note else '' }}" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Описание</label>
+                            <textarea class="form-control" id="description" name="description" rows="4">{{ release_note.description if release_note else '' }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="release_type" class="form-label">Тип релиза</label>
+                            <select class="form-select" id="release_type" name="release_type">
+                                <option value="major" {% if release_note and release_note.release_type == 'major' %}selected{% endif %}>Крупное обновление</option>
+                                <option value="minor" {% if release_note and release_note.release_type == 'minor' %}selected{% endif %}>Новые функции</option>
+                                <option value="patch" {% if release_note and release_note.release_type == 'patch' %}selected{% endif %}>Исправления</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="release_date" class="form-label">Дата релиза <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="release_date" name="release_date" 
+                                   value="{% if release_note and release_note.release_date %}{{ release_note.release_date.strftime('%Y-%m-%d') }}{% else %}{{ 'now'|date('%Y-%m-%d') }}{% endif %}" 
+                                   required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="changes" class="form-label">Изменения</label>
+                            <textarea class="form-control" id="changes" name="changes" rows="10" 
+                                      placeholder="Добавлено:&#10;- Новая функция X&#10;- Улучшение Y&#10;&#10;Изменено:&#10;- Обновлён интерфейс Z&#10;&#10;Исправлено:&#10;- Баг в модуле A">{{ release_note.changes if release_note else '' }}</textarea>
+                            <small class="form-text text-muted">Опишите изменения в свободной форме</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_published" name="is_published" 
+                                       {% if release_note and release_note.is_published %}checked{% endif %}>
+                                <label class="form-check-label" for="is_published">
+                                    Опубликовать
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_important" name="is_important" 
+                                       {% if release_note and release_note.is_important %}checked{% endif %}>
+                                <label class="form-check-label" for="is_important">
+                                    Важное обновление (отправить уведомление всем пользователям)
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Сохранить</button>
+                            <a href="{% if release_note %}/release_notes/{{ release_note.id }}{% else %}/release_notes{% endif %}" class="btn btn-outline-secondary">Отмена</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Справка</h6>
+                </div>
+                <div class="card-body">
+                    <p><strong>Типы релизов:</strong></p>
+                    <ul class="small">
+                        <li><strong>Крупное обновление</strong> - значительные изменения в системе</li>
+                        <li><strong>Новые функции</strong> - добавление нового функционала</li>
+                        <li><strong>Исправления</strong> - исправление ошибок и багов</li>
+                    </ul>
+                    <p class="small"><strong>Важное обновление</strong> - при публикации всем пользователям будет отправлено уведомление.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+
+

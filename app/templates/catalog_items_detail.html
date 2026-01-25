@@ -11,6 +11,11 @@
     </h1>
   </div>
   <div class="d-flex gap-2">
+    {% if can_manage %}
+    <button type="button" class="btn btn-outline-primary" id="enrichBtn" data-item-id="{{ item.id }}">
+      <i class="fas fa-magic me-2"></i>Обогатить
+    </button>
+    {% endif %}
     <a href="/catalog" class="btn btn-outline-secondary">&larr; К каталогу</a>
     <a href="/dashboard" class="btn btn-outline-secondary">На главную</a>
   </div>
@@ -83,6 +88,21 @@
   </div>
 </div>
 
+<!-- Модальное окно для выбора кандидата -->
+<div class="modal fade" id="candidateModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Выберите кандидата</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="candidatesList">
+        <!-- Кандидаты будут добавлены через JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 async function requestPrice(btn) {
   const vid = btn.getAttribute('data-variant');
@@ -102,5 +122,90 @@ async function requestPrice(btn) {
     btn.disabled = false;
   }
 }
+
+// Обработка кнопки "Обогатить"
+document.addEventListener('DOMContentLoaded', function() {
+  const enrichBtn = document.getElementById('enrichBtn');
+  if (enrichBtn) {
+    enrichBtn.addEventListener('click', async function() {
+      const itemId = this.dataset.itemId;
+      const originalText = this.innerHTML;
+      this.disabled = true;
+      this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Обогащение...';
+      
+      try {
+        const response = await fetch(`/catalog/${itemId}/enrich`, {
+          method: 'POST'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          if (data.needs_review && data.candidates) {
+            // Показываем модальное окно с кандидатами
+            const modal = new bootstrap.Modal(document.getElementById('candidateModal'));
+            const candidatesList = document.getElementById('candidatesList');
+            candidatesList.innerHTML = '';
+            
+            data.candidates.forEach((candidate, index) => {
+              const div = document.createElement('div');
+              div.className = 'card mb-2';
+              div.innerHTML = `
+                <div class="card-body">
+                  <h6 class="card-title">${candidate.name || 'Без названия'}</h6>
+                  ${candidate.description ? `<p class="card-text small">${candidate.description.substring(0, 200)}...</p>` : ''}
+                  ${candidate.image_url ? `<img src="${candidate.image_url}" class="img-thumbnail" style="max-width: 100px;">` : ''}
+                  <button class="btn btn-sm btn-primary mt-2 select-candidate" data-candidate-id="${candidate.id}">
+                    Выбрать
+                  </button>
+                </div>
+              `;
+              candidatesList.appendChild(div);
+            });
+            
+            // Обработчики выбора кандидата
+            candidatesList.querySelectorAll('.select-candidate').forEach(btn => {
+              btn.addEventListener('click', async function() {
+                const candidateId = this.dataset.candidateId;
+                const formData = new FormData();
+                formData.append('candidate_id', candidateId);
+                
+                try {
+                  const selectResponse = await fetch(`/catalog/${itemId}/enrich/select`, {
+                    method: 'POST',
+                    body: formData
+                  });
+                  const selectData = await selectResponse.json();
+                  
+                  if (selectData.success) {
+                    modal.hide();
+                    alert('Кандидат выбран и применен');
+                    window.location.reload();
+                  } else {
+                    alert('Ошибка: ' + (selectData.error || 'Неизвестная ошибка'));
+                  }
+                } catch (e) {
+                  alert('Ошибка при выборе кандидата: ' + e.message);
+                }
+              });
+            });
+            
+            modal.show();
+          } else {
+            alert('Карточка успешно обогащена');
+            window.location.reload();
+          }
+        } else {
+          alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+        }
+      } catch (error) {
+        console.error('Enrichment error:', error);
+        alert('Ошибка при обогащении: ' + error.message);
+      } finally {
+        this.disabled = false;
+        this.innerHTML = originalText;
+      }
+    });
+  }
+});
 </script>
 {% endblock %}

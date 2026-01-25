@@ -1,0 +1,127 @@
+{% extends "layout.html" %}
+{% block title %}Нормализация{% endblock %}
+{% block page_title %}Нормализация{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h4 mb-0">Нормализация данных</h1>
+    </div>
+
+    <!-- Вкладки -->
+    <ul class="nav nav-tabs mb-4" id="normalizationTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <a class="nav-link active" id="review-tab" data-bs-toggle="tab" href="#review" role="tab" aria-controls="review" aria-selected="true">
+                <i class="fas fa-clipboard-check me-2"></i>Ревью
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="brands-tab" data-bs-toggle="tab" href="#brands" role="tab" aria-controls="brands" aria-selected="false">
+                <i class="fas fa-tag me-2"></i>Бренды
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="upload-tab" data-bs-toggle="tab" href="#upload" role="tab" aria-controls="upload" aria-selected="false">
+                <i class="fas fa-upload me-2"></i>Загрузка прайса
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="bootstrap-tab" data-bs-toggle="tab" href="#bootstrap" role="tab" aria-controls="bootstrap" aria-selected="false">
+                <i class="fas fa-magic me-2"></i>Бутстрап брендов
+            </a>
+        </li>
+    </ul>
+
+    <!-- Содержимое вкладок -->
+    <div class="tab-content" id="normalizationTabsContent">
+        <!-- Вкладка Ревью -->
+        <div class="tab-pane fade show active" id="review" role="tabpanel" aria-labelledby="review-tab">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Ревью нормализации</h5>
+                    <p class="text-muted">Проверка и исправление результатов нормализации товаров. Здесь можно просмотреть товары, требующие проверки, и исправить результаты нормализации.</p>
+                    <div class="d-flex gap-2">
+                        <a href="/normalization/review" class="btn btn-primary">
+                            <i class="fas fa-clipboard-check me-2"></i>Открыть ревью
+                        </a>
+                        <a href="/normalization/review?status_filter=all" class="btn btn-outline-secondary">
+                            <i class="fas fa-list me-2"></i>Все товары
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вкладка Бренды -->
+        <div class="tab-pane fade" id="brands" role="tabpanel" aria-labelledby="brands-tab">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Управление брендами</h5>
+                    <p class="text-muted">Создание и редактирование брендов и их алиасов. Алиасы помогают системе находить бренды по различным вариантам написания.</p>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="/admin/brands" class="btn btn-primary">
+                            <i class="fas fa-tag me-2"></i>Список брендов
+                        </a>
+                        <a href="/admin/brands/new" class="btn btn-outline-primary">
+                            <i class="fas fa-plus me-2"></i>Создать бренд
+                        </a>
+                        <a href="/admin/brands/bootstrap" class="btn btn-outline-info">
+                            <i class="fas fa-magic me-2"></i>Бутстрап
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вкладка Загрузка прайса -->
+        <div class="tab-pane fade" id="upload" role="tabpanel" aria-labelledby="upload-tab">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Загрузка и нормализация прайса</h5>
+                    <p class="text-muted">Загрузка прайса и запуск нормализации товаров. После загрузки можно запустить нормализацию для автоматической классификации товаров.</p>
+                    <a href="/price/upload_page" class="btn btn-primary">
+                        <i class="fas fa-upload me-2"></i>Загрузить прайс
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вкладка Бутстрап брендов -->
+        <div class="tab-pane fade" id="bootstrap" role="tabpanel" aria-labelledby="bootstrap-tab">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Бутстрап брендов</h5>
+                    <p class="text-muted">Автоматическое создание брендов из прайса</p>
+                    <a href="/admin/brands/bootstrap" class="btn btn-primary">
+                        <i class="fas fa-magic me-2"></i>Открыть бутстрап
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Сохраняем активную вкладку в localStorage
+document.addEventListener('DOMContentLoaded', function() {
+    const tabs = document.querySelectorAll('#normalizationTabs button[data-bs-toggle="tab"]');
+    const savedTab = localStorage.getItem('normalizationActiveTab');
+    
+    if (savedTab) {
+        const tabToShow = document.querySelector(`#${savedTab}-tab`);
+        if (tabToShow) {
+            const tab = new bootstrap.Tab(tabToShow);
+            tab.show();
+        }
+    }
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function (e) {
+            const activeTab = e.target.getAttribute('id');
+            localStorage.setItem('normalizationActiveTab', activeTab.replace('-tab', ''));
+        });
+    });
+});
+</script>
+{% endblock %}
+

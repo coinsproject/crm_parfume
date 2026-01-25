@@ -50,6 +50,8 @@ desktop.ini
 tmp_*.py
 _tmp_*.py
 *.tmp
+*.ZIP
+*.zip
 
 # Frontend
 node_modules/

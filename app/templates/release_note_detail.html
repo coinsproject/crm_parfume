@@ -1,0 +1,92 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ release_note.title }}{% endblock %}
+
+{% block page_title %}{{ release_note.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0">
+                            {% if release_note.is_important %}
+                            <span class="badge bg-warning me-2">Важно</span>
+                            {% endif %}
+                            {{ release_note.title }}
+                        </h5>
+                        <small class="text-muted">Версия {{ release_note.version }}</small>
+                    </div>
+                    <span class="badge 
+                        {% if release_note.release_type == 'major' %}bg-danger
+                        {% elif release_note.release_type == 'minor' %}bg-primary
+                        {% else %}bg-secondary{% endif %}">
+                        {{ release_note.release_type }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        <i class="fas fa-calendar"></i> Дата релиза: {{ release_note.release_date.strftime('%d.%m.%Y') if release_note.release_date else '' }}
+                        {% if release_note.created_by_user %}
+                        <span class="ms-3"><i class="fas fa-user"></i> Автор: {{ release_note.created_by_user.username }}</span>
+                        {% endif %}
+                    </p>
+                    
+                    {% if release_note.description %}
+                    <div class="mb-4">
+                        <h6>Описание</h6>
+                        <p>{{ release_note.description }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    {% if release_note.changes %}
+                    <div class="mb-4">
+                        <h6>Изменения</h6>
+                        <pre class="bg-light p-3 rounded" style="white-space: pre-wrap;">{{ release_note.changes }}</pre>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <a href="/release_notes" class="btn btn-outline-secondary">Назад к списку</a>
+                    {% if current_user.role and current_user.role.name == 'ADMIN' %}
+                    <a href="/release_notes/admin/{{ release_note.id }}/edit" class="btn btn-outline-primary">Редактировать</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Информация</h6>
+                </div>
+                <div class="card-body">
+                    <p><strong>Текущая версия:</strong><br>{{ current_version }}</p>
+                    <p><strong>Версия релиза:</strong><br>{{ release_note.version }}</p>
+                    <p><strong>Тип:</strong><br>
+                        {% if release_note.release_type == 'major' %}
+                        Крупное обновление
+                        {% elif release_note.release_type == 'minor' %}
+                        Новые функции
+                        {% else %}
+                        Исправления
+                        {% endif %}
+                    </p>
+                    <p><strong>Статус:</strong><br>
+                        {% if release_note.is_published %}
+                        <span class="badge bg-success">Опубликован</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Черновик</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+
+

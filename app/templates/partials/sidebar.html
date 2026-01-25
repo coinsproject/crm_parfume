@@ -39,6 +39,20 @@
       </a>
     </li>
     {% endif %}
+    {% if is_admin or 'orders.view_all' in perms or 'orders.view_own' in perms %}
+    <li class="nav-item">
+      <a class="nav-link {% if active_menu == 'purchase_requests' %}active{% endif %}" href="/purchase_requests">
+        <i class="nav-icon fas fa-clipboard-list me-2"></i>
+        <span>Запросы на закупку</span>
+      </a>
+    </li>
+    {% endif %}
+    <li class="nav-item">
+      <a class="nav-link {% if active_menu == 'release_notes' %}active{% endif %}" href="/release_notes">
+        <i class="nav-icon fas fa-newspaper me-2"></i>
+        <span>Что нового?</span>
+      </a>
+    </li>
     {% if is_admin or 'partners.view_all' in perms %}
     <li class="nav-item">
       <a class="nav-link {% if active_menu == 'partners' %}active{% endif %}" href="/partners">
@@ -66,6 +80,12 @@
     </li>
     {% endif %}
     {% if is_admin %}
+    <li class="nav-item">
+      <a class="nav-link {% if active_menu == 'normalization' %}active{% endif %}" href="/normalization">
+        <i class="nav-icon fas fa-cogs me-2"></i>
+        <span>Нормализация</span>
+      </a>
+    </li>
     <li class="nav-item">
       <a class="nav-link d-flex justify-content-between align-items-center {% if active_menu in ['settings_roles','settings_security','admin_catalog'] %}active{% endif %}"
          data-bs-toggle="collapse" href="#settingsMenu" role="button"

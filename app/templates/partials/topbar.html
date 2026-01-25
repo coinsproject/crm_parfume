@@ -7,6 +7,15 @@
       <h1 class="topbar-title mb-0 flex-grow-1">{% block page_title %}{% endblock %}</h1>
       <div class="topbar-actions d-flex align-items-center gap-2">
         {% if current_user %}
+          {% if current_user.role and current_user.role.name == 'PARTNER' %}
+          <a class="btn btn-outline-secondary btn-sm" href="/partners/me">Профиль</a>
+          {% endif %}
+          <a href="/notifications" class="btn btn-outline-secondary btn-sm position-relative" title="Уведомления">
+            <i class="fas fa-bell"></i>
+            <span id="notification-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display: none;">
+              0
+            </span>
+          </a>
         <div class="user-profile">
           <div class="user-avatar" title="{{ current_user.username }}">
             {{ current_user.username[0:2].upper() }}
@@ -17,4 +26,8 @@
     </div>
   </div>
 </div>
+
+
+
+
 

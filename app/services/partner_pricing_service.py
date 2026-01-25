@@ -14,6 +14,7 @@ class PartnerPricingPolicy:
     admin_markup_percent: Decimal
     max_partner_markup_percent: Optional[Decimal]
     partner_default_markup_percent: Decimal
+    partner_price_markup_percent: Decimal
 
 
 def _to_decimal(value) -> Decimal:
@@ -40,12 +41,16 @@ def get_partner_pricing_policy(db: Session, partner_id: int) -> PartnerPricingPo
             admin_markup_percent=Decimal("0"),
             max_partner_markup_percent=None,
             partner_default_markup_percent=Decimal("0"),
+            partner_price_markup_percent=Decimal("0"),
         )
     max_partner = _to_decimal(partner.max_partner_markup_percent) if partner.max_partner_markup_percent is not None else None
+    # Безопасное получение partner_price_markup_percent (на случай, если миграция еще не применена)
+    partner_price_markup = getattr(partner, 'partner_price_markup_percent', None)
     return PartnerPricingPolicy(
         admin_markup_percent=_quantize_percent(_to_decimal(partner.admin_markup_percent)),
         max_partner_markup_percent=_quantize_percent(max_partner) if max_partner is not None else None,
         partner_default_markup_percent=_quantize_percent(_to_decimal(partner.partner_default_markup_percent)),
+        partner_price_markup_percent=_quantize_percent(_to_decimal(partner_price_markup)),
     )
 
 
@@ -105,6 +110,20 @@ def calc_client_price(
     """
     base = _to_decimal(base_price)
     pct = _to_decimal(total_markup_percent)
+    result = base * (Decimal("1") + pct / Decimal("100"))
+    return _quantize_money(result)
+
+
+def calc_partner_price(
+    base_price: Decimal,
+    partner_price_markup_percent: Decimal,
+) -> Decimal:
+    """
+    base_price: базовая цена (например price_1 из прайса)
+    partner_price_markup_percent: надбавка на прайс для партнёра
+    """
+    base = _to_decimal(base_price)
+    pct = _to_decimal(partner_price_markup_percent)
     result = base * (Decimal("1") + pct / Decimal("100"))
     return _quantize_money(result)
 

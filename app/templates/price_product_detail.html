@@ -42,8 +42,8 @@
                                 <table class="table table-sm mb-0">
                                     <thead class="table-light">
                                         <tr>
-                                            <th>Прайс</th>
-                                            <th>Прайс + админ</th>
+                                            <th>Цена партнёра</th>
+                                            <th>+ админ</th>
                                             <th>Клиенту (админ + партнёр)</th>
                                         </tr>
                                     </thead>
@@ -88,21 +88,37 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for h in history %}
-                                <tr>
-                                    <td>{{ h.source_date or h.created_at.date() }}</td>
-                                    <td>
-                                        {% if can_view_client %}
-                                            {{ (h.new_price_2 if h.new_price_2 is not none else h.price) or "-" }}
-                                        {% else %}
-                                            <span class="text-muted">Нет прав</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ h.change_type or "-" }}</td>
-                                </tr>
+                                {% if history_with_partner_prices %}
+                                    {% for item in history_with_partner_prices %}
+                                    <tr>
+                                        <td>{{ item.history.source_date or item.history.created_at.date() }}</td>
+                                        <td>
+                                            {% if can_view_client %}
+                                                {{ item.partner_price }}
+                                            {% else %}
+                                                <span class="text-muted">Нет прав</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ item.history.change_type or "-" }}</td>
+                                    </tr>
+                                    {% endfor %}
                                 {% else %}
-                                <tr><td colspan="3" class="text-muted">Нет записей</td></tr>
-                                {% endfor %}
+                                    {% for h in history %}
+                                    <tr>
+                                        <td>{{ h.source_date or h.created_at.date() }}</td>
+                                        <td>
+                                            {% if can_view_client %}
+                                                {{ (h.new_price_2 if h.new_price_2 is not none else h.price) or "-" }}
+                                            {% else %}
+                                                <span class="text-muted">Нет прав</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ h.change_type or "-" }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="3" class="text-muted">Нет записей</td></tr>
+                                    {% endfor %}
+                                {% endif %}
                             </tbody>
                         </table>
                     </div>

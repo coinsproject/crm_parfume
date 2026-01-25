@@ -56,3 +56,12 @@ docker-compose restart
 
 Подробная инструкция: [DEPLOYMENT.md](DEPLOYMENT.md)
 
+
+
+
+
+
+
+
+
+

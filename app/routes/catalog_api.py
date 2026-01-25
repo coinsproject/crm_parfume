@@ -41,7 +41,19 @@ async def catalog_list(
     page = max(1, page)
     limit = max(1, min(int(limit or 20), 100))
 
-    query = db.query(CatalogItem).filter(CatalogItem.visible.is_(True))
+    # Фильтруем только те CatalogItem, у которых есть варианты с активными товарами прайса
+    query = (
+        db.query(CatalogItem)
+        .join(CatalogVariant, CatalogItem.id == CatalogVariant.catalog_item_id)
+        .join(PriceProduct, CatalogVariant.price_product_id == PriceProduct.id)
+        .filter(
+            CatalogItem.visible.is_(True),
+            PriceProduct.is_active.is_(True),
+            PriceProduct.is_in_stock.is_(True),
+            PriceProduct.is_in_current_pricelist.is_(True)
+        )
+        .distinct()
+    )
     if not show_out_of_stock:
         query = query.filter(CatalogItem.in_stock.is_(True))
 
@@ -71,11 +83,21 @@ async def catalog_list(
     total = query.count()
     items = query.order_by(CatalogItem.brand.asc(), CatalogItem.name.asc()).offset((page - 1) * limit).limit(limit).all()
 
-    # Prefetch variants
+    # Prefetch variants (только для активных товаров прайса)
     item_ids = [i.id for i in items]
     variants_by_item = {vid: [] for vid in item_ids}
     if item_ids:
-        for v in db.query(CatalogVariant).filter(CatalogVariant.catalog_item_id.in_(item_ids)).all():
+        for v in (
+            db.query(CatalogVariant)
+            .join(PriceProduct, CatalogVariant.price_product_id == PriceProduct.id)
+            .filter(
+                CatalogVariant.catalog_item_id.in_(item_ids),
+                PriceProduct.is_active.is_(True),
+                PriceProduct.is_in_stock.is_(True),
+                PriceProduct.is_in_current_pricelist.is_(True)
+            )
+            .all()
+        ):
             variants_by_item.setdefault(v.catalog_item_id, []).append(v)
 
     pages = (total + limit - 1) // limit if total else 1
@@ -110,9 +132,16 @@ async def catalog_detail(item_id: int, db: Session = Depends(get_db)):
     if not item:
         raise HTTPException(status_code=404, detail="Товар каталога не найден")
 
+    # Фильтруем варианты только для активных товаров прайса
     variants = (
         db.query(CatalogVariant)
-        .filter(CatalogVariant.catalog_item_id == item.id)
+        .join(PriceProduct, CatalogVariant.price_product_id == PriceProduct.id)
+        .filter(
+            CatalogVariant.catalog_item_id == item.id,
+            PriceProduct.is_active.is_(True),
+            PriceProduct.is_in_stock.is_(True),
+            PriceProduct.is_in_current_pricelist.is_(True)
+        )
         .all()
     )
 

@@ -1,0 +1,203 @@
+{% extends "layout.html" %}
+
+{% block title %}Бутстрап брендов из прайса - Parfume CRM{% endblock %}
+
+{% block page_title %}Бутстрап брендов из прайса{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h4 mb-0">Бутстрап брендов из прайса</h1>
+        <div class="d-flex gap-2">
+            <a href="/admin/brands" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>К списку брендов
+            </a>
+        </div>
+    </div>
+
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Как это работает:</strong> Система анализирует все активные товары из прайса и извлекает кандидатов брендов.
+        Вы можете создать новый бренд с алиасом или привязать кандидата к существующему бренду.
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="mb-3">
+                <span class="text-muted">Найдено кандидатов: {{ candidates|length }}</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Кандидат</th>
+                            <th>Частота</th>
+                            <th>Пример</th>
+                            <th>Статус</th>
+                            <th class="text-end">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if candidates %}
+                        {% for candidate in candidates %}
+                        <tr id="candidate-row-{{ loop.index0 }}" 
+                            {% if candidate.exists_as_brand or candidate.exists_as_alias %}class="table-secondary"{% endif %}>
+                            <td>
+                                <strong>{{ candidate.candidate }}</strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">{{ candidate.count }}</span>
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                    {% if candidate.example_raw_name %}
+                                        {{ candidate.example_raw_name[:60] }}{% if candidate.example_raw_name|length > 60 %}...{% endif %}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </small>
+                            </td>
+                            <td>
+                                {% if candidate.exists_as_brand %}
+                                <span class="badge bg-success">Есть бренд</span>
+                                {% elif candidate.exists_as_alias %}
+                                <span class="badge bg-info">Есть алиас</span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark">Новый</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if not candidate.exists_as_brand and not candidate.exists_as_alias %}
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-sm btn-success" 
+                                            onclick="createBrand('{{ candidate.candidate|e }}', {{ loop.index0 }})">
+                                        <i class="fas fa-plus me-1"></i>Создать бренд + алиас
+                                    </button>
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-sm btn-primary dropdown-toggle" 
+                                                data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="fas fa-link me-1"></i>Привязать к бренду
+                                        </button>
+                                        <ul class="dropdown-menu" style="max-height: 300px; overflow-y: auto;">
+                                            {% set candidate_index = loop.index0 %}
+                                            {% for brand in brands %}
+                                            <li>
+                                                <a class="dropdown-item" href="#" 
+                                                   onclick="mapToBrand('{{ candidate.candidate|e }}', {{ brand.id }}, '{{ brand.name_canonical|e }}', {{ candidate_index }}); return false;">
+                                                    {{ brand.name_canonical }}
+                                                </a>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <span class="text-muted small">Уже существует</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                Кандидаты не найдены. Убедитесь, что в прайсе есть активные товары.
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function createBrand(candidate, rowIndex) {
+    const row = document.getElementById(`candidate-row-${rowIndex}`);
+    const btn = row.querySelector('button.btn-success');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Создание...';
+    
+    try {
+        const formData = new FormData();
+        formData.append('candidate', candidate);
+        
+        const response = await fetch('/admin/brands/bootstrap/create', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Обновляем строку
+            row.classList.add('table-secondary');
+            const statusCell = row.cells[3];
+            statusCell.innerHTML = '<span class="badge bg-success">Есть бренд</span>';
+            const actionsCell = row.cells[4];
+            actionsCell.innerHTML = '<span class="text-muted small">Уже существует</span>';
+            
+            alert(`Бренд "${data.brand_name}" создан успешно!`);
+        } else {
+            alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    } catch (error) {
+        console.error('Error creating brand:', error);
+        alert('Ошибка при создании бренда: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+async function mapToBrand(candidate, brandId, brandName, rowIndex) {
+    const row = document.getElementById(`candidate-row-${rowIndex}`);
+    const btn = row.querySelector('button.dropdown-toggle');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Привязка...';
+    
+    // Закрываем dropdown
+    const dropdown = bootstrap.Dropdown.getInstance(btn);
+    if (dropdown) {
+        dropdown.hide();
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('candidate', candidate);
+        formData.append('brand_id', brandId);
+        
+        const response = await fetch('/admin/brands/bootstrap/map', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Обновляем строку
+            row.classList.add('table-secondary');
+            const statusCell = row.cells[3];
+            statusCell.innerHTML = '<span class="badge bg-info">Есть алиас</span>';
+            const actionsCell = row.cells[4];
+            actionsCell.innerHTML = `<span class="text-muted small">Привязан к "${brandName}"</span>`;
+            
+            alert(`Кандидат "${candidate}" привязан к бренду "${brandName}"!`);
+        } else {
+            alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    } catch (error) {
+        console.error('Error mapping candidate:', error);
+        alert('Ошибка при привязке: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+</script>
+{% endblock %}
+

@@ -9,6 +9,7 @@ from app.models import User, Client, Partner, PartnerClientMarkup
 from app.services.auth_service import require_permission, user_has_permission, resolve_current_partner
 from app.services.stats_service import get_client_finance_stats
 from app.services.partner_pricing_service import get_partner_pricing_policy
+from app.logging_config import auth_logger
 
 router = APIRouter(prefix="/clients", tags=["clients"])
 templates = Jinja2Templates(directory="app/templates")
@@ -39,6 +40,7 @@ def _get_filters_for_user(current_user: User, can_view_all: bool, q: str = "", p
         (Client.owner_user_id == current_user.id)
         | (Client.owner_partner_id == partner_filter)
         | (Client.partner_id == partner_filter)
+        | (Client.created_by_user_id == current_user.id)  # Клиенты, созданные текущим пользователем
     )
     return base
 
@@ -89,6 +91,7 @@ async def get_clients_list(
 @router.get("/new", response_class=HTMLResponse)
 async def client_create_form(
     request: Request,
+    return_to: Optional[str] = None,
     current_user: User = Depends(require_permission("clients.create")),
     db: Session = Depends(get_db)
 ):
@@ -102,6 +105,7 @@ async def client_create_form(
         "can_choose_partner": can_view_all,
         "errors": {},
         "form": {},
+        "return_to": return_to,
     })
 
 
@@ -170,6 +174,7 @@ async def create_client(
     notes: Optional[str] = Form(None),
     partner_id: Optional[str] = Form(None),
     can_access_catalog: bool = Form(False),
+    return_to: Optional[str] = Form(None),
     current_user: User = Depends(require_permission("clients.create")),
     db: Session = Depends(get_db)
 ):
@@ -224,7 +229,8 @@ async def create_client(
                 "partner_id": partner_id,
                 "can_access_catalog": can_access_catalog,
             },
-            "active_menu": "clients"
+            "active_menu": "clients",
+            "return_to": return_to,
         })
 
     client = Client(
@@ -243,6 +249,11 @@ async def create_client(
     db.commit()
     db.refresh(client)
 
+    # Если есть return_to, возвращаемся туда с параметром client_id
+    if return_to:
+        separator = "&" if "?" in return_to else "?"
+        return RedirectResponse(url=f"{return_to}{separator}client_id={client.id}", status_code=status.HTTP_303_SEE_OTHER)
+    
     return RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -416,8 +427,43 @@ async def delete_client(
     if not client:
         raise HTTPException(status_code=404, detail="Клиент не найден")
     _ensure_can_edit_client(client, current_user, db)
-    db.delete(client)
-    db.commit()
+    
+    # Проверяем наличие связанных заказов
+    from app.models import Order, PartnerClientMarkup
+    orders_count = db.query(Order).filter(Order.client_id == client_id).count()
+    if orders_count > 0:
+        auth_logger.warning(f"Попытка удаления клиента {client_id} с {orders_count} заказ(ами) пользователем {current_user.username}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Невозможно удалить клиента: у него есть {orders_count} заказ(ов). Сначала удалите или измените заказы."
+        )
+    
+    # Проверяем наличие связанных накруток партнера и удаляем их
+    markups_count = db.query(PartnerClientMarkup).filter(PartnerClientMarkup.client_id == client_id).count()
+    if markups_count > 0:
+        try:
+            db.query(PartnerClientMarkup).filter(PartnerClientMarkup.client_id == client_id).delete(synchronize_session=False)
+            auth_logger.info(f"Удалено {markups_count} накруток партнера для клиента {client_id}")
+        except Exception as e:
+            auth_logger.error(f"Ошибка при удалении накруток партнера для клиента {client_id}: {str(e)}")
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Ошибка при удалении связанных данных: {str(e)}"
+            )
+    
+    try:
+        db.delete(client)
+        db.commit()
+        auth_logger.info(f"Клиент {client_id} ({client.name}) успешно удален пользователем {current_user.username}")
+    except Exception as e:
+        db.rollback()
+        auth_logger.error(f"Ошибка при удалении клиента {client_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ошибка при удалении клиента. Проверьте логи для деталей."
+        )
+    
     return RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)
 
 

@@ -1,0 +1,92 @@
+{% extends "layout.html" %}
+{% block title %}Запросы на закупку{% endblock %}
+{% block page_title %}Запросы на закупку{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">Запросы на закупку</h4>
+        {% if not is_admin %}
+        <a href="/purchase_requests/new" class="btn btn-primary">Создать запрос</a>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="mb-3">
+                <a href="?status_filter=all" class="btn btn-sm btn-outline-secondary {% if status_filter == 'all' %}active{% endif %}">Все</a>
+                <a href="?status_filter=NEW" class="btn btn-sm btn-outline-secondary {% if status_filter == 'NEW' %}active{% endif %}">Новые</a>
+                <a href="?status_filter=draft" class="btn btn-sm btn-outline-secondary {% if status_filter == 'draft' %}active{% endif %}">Черновики</a>
+                <a href="?status_filter=submitted" class="btn btn-sm btn-outline-secondary {% if status_filter == 'submitted' %}active{% endif %}">Отправленные</a>
+                <a href="?status_filter=PENDING_APPROVAL" class="btn btn-sm btn-outline-secondary {% if status_filter == 'PENDING_APPROVAL' %}active{% endif %}">На подтверждении</a>
+                <a href="?status_filter=partially_received" class="btn btn-sm btn-outline-secondary {% if status_filter == 'partially_received' %}active{% endif %}">Частично получены</a>
+                <a href="?status_filter=fully_received" class="btn btn-sm btn-outline-secondary {% if status_filter == 'fully_received' %}active{% endif %}">Получены</a>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Партнёр</th>
+                            <th>Статус</th>
+                            <th>Ожидаемая дата</th>
+                            <th>Заказов</th>
+                            <th>Позиций</th>
+                            <th>Создан</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in purchase_requests %}
+                        <tr>
+                            <td>#{{ req.id }}</td>
+                            <td>{{ req.partner.name if req.partner else '-' }}</td>
+                            <td>
+                                {% if req.status == 'NEW' %}
+                                <span class="badge bg-info">Новый</span>
+                                {% elif req.status == 'draft' %}
+                                <span class="badge bg-secondary">Черновик</span>
+                                {% elif req.status == 'submitted' %}
+                                <span class="badge bg-primary">Отправлен</span>
+                                {% elif req.status == 'PENDING_APPROVAL' %}
+                                <span class="badge bg-warning">Отправлен на подтверждение</span>
+                                {% elif req.status == 'partially_received' %}
+                                <span class="badge bg-warning">Частично получен</span>
+                                {% elif req.status == 'fully_received' %}
+                                <span class="badge bg-success">Получен</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ req.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ req.expected_delivery_date.strftime('%d.%m.%Y') if req.expected_delivery_date else '-' }}</td>
+                            <td>{{ req.orders_count }}</td>
+                            <td>{{ req.items_count }}</td>
+                            <td>{{ req.created_at.strftime('%d.%m.%Y %H:%M') if req.created_at else '-' }}</td>
+                            <td>
+                                <a href="/purchase_requests/{{ req.id }}" class="btn btn-sm btn-outline-primary">Открыть</a>
+                                {% if req.status != 'PENDING_APPROVAL' and req.status != 'partially_received' and req.status != 'fully_received' %}
+                                <form method="post" action="/purchase_requests/{{ req.id }}/delete" style="display: inline-block;" onsubmit="return confirm('Вы уверены, что хотите удалить этот запрос на закупку?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-muted text-center">Нет запросов</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+
+
+
+
+

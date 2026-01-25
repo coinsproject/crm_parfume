@@ -1,0 +1,457 @@
+{% extends "layout.html" %}
+{% block title %}Ревью нормализации прайса{% endblock %}
+{% block page_title %}Ревью нормализации прайса{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h4 mb-0">Ревью нормализации прайса</h1>
+        <div class="d-flex gap-2">
+            <a href="/price/search" class="btn btn-outline-secondary btn-sm">К поиску прайса</a>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="get" action="/normalization/review" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">Статус</label>
+                    <select class="form-select" name="status_filter">
+                        <option value="review" {% if status_filter == 'review' %}selected{% endif %}>На ревью</option>
+                        <option value="error" {% if status_filter == 'error' %}selected{% endif %}>Ошибки</option>
+                        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>Все (ревью + ошибки)</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Фильтр</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="mb-2">
+                <span class="text-muted">Всего: {{ total }} записей</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Артикул</th>
+                            <th>Исходное название</th>
+                            <th>Распознано</th>
+                            <th>Статус</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in products %}
+                        <tr>
+                            <td>{{ product.id }}</td>
+                            <td><code>{{ product.external_article }}</code></td>
+                            <td>
+                                <div class="fw-semibold">{{ product.raw_name }}</div>
+                                {% if product.normalization_notes %}
+                                <div class="text-muted small">{{ product.normalization_notes }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="small">
+                                    <div><strong>Бренд:</strong> {{ product.norm_brand or '-' }} 
+                                        {% if product.brand_confidence %}({{ "%.0f"|format(product.brand_confidence * 100) }}%){% endif %}
+                                    </div>
+                                    <div><strong>Модель:</strong> {{ product.model_name or '-' }}</div>
+                                    {% if product.series %}
+                                    <div><strong>Серия:</strong> {{ product.series }}</div>
+                                    {% endif %}
+                                    {% if product.attrs_json %}
+                                    {% set attrs = product.attrs_json|from_json %}
+                                    {% if attrs and attrs.format %}
+                                    <div><strong>Формат:</strong> 
+                                        <span class="badge bg-info">{{ attrs.format }}</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if attrs and attrs.volume_ml %}
+                                    <div><strong>Объём:</strong> {{ attrs.volume_ml }} мл</div>
+                                    {% endif %}
+                                    {% if attrs and attrs.color %}
+                                    <div><strong>Цвет:</strong> {{ attrs.color }}</div>
+                                    {% endif %}
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                {% if product.ai_status == 'review' %}
+                                <span class="badge bg-warning">На ревью</span>
+                                {% elif product.ai_status == 'error' %}
+                                <span class="badge bg-danger">Ошибка</span>
+                                {% else %}
+                                <span class="badge bg-success">OK</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-sm btn-primary" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#reviewModal{{ product.id }}">
+                                        Редактировать
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-info" 
+                                            onclick="searchViaFragella({{ product.id }}, '{{ product.raw_name|e }}')"
+                                            title="Найти через Fragella API">
+                                        🔍 Fragella
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        
+                        <!-- Modal для редактирования -->
+                        <div class="modal fade" id="reviewModal{{ product.id }}" tabindex="-1">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <form method="post" action="/normalization/review/{{ product.id }}">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Редактирование нормализации</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Исходное название</label>
+                                                <div class="form-control-plaintext bg-light p-2 rounded">
+                                                    {{ product.raw_name }}
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Бренд *</label>
+                                                    <input type="text" 
+                                                           class="form-control" 
+                                                           name="norm_brand" 
+                                                           id="norm_brand_{{ product.id }}"
+                                                           value="{{ product.norm_brand or '' }}"
+                                                           list="brands-list-{{ product.id }}"
+                                                           required>
+                                                    <datalist id="brands-list-{{ product.id }}">
+                                                        {% for brand in brands %}
+                                                        <option value="{{ brand.name_canonical }}">
+                                                        {% endfor %}
+                                                    </datalist>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Уверенность бренда (0-1)</label>
+                                                    <input type="number" 
+                                                           class="form-control" 
+                                                           name="brand_confidence" 
+                                                           value="{{ product.brand_confidence or '0.9' }}"
+                                                           step="0.01" min="0" max="1">
+                                                </div>
+                                                <div class="col-md-12">
+                                                    <label class="form-label">Алиас (как в прайсе)</label>
+                                                    <input type="text" 
+                                                           class="form-control" 
+                                                           name="brand_alias" 
+                                                           id="brand_alias_{{ product.id }}"
+                                                           placeholder="Автозаполнение при вводе модели"
+                                                           data-raw-name="{{ product.raw_name|e }}">
+                                                    <div class="form-text">Алиас будет использоваться для поиска бренда в прайсе. Автоматически заполняется при вводе модели.</div>
+                                                </div>
+                                                <div class="col-md-12">
+                                                    <label class="form-label">Название модели *</label>
+                                                    <input type="text" 
+                                                           class="form-control" 
+                                                           name="model_name" 
+                                                           id="model_name_{{ product.id }}"
+                                                           value="{{ product.model_name or '' }}"
+                                                           oninput="updateBrandAlias({{ product.id }})"
+                                                           required>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Серия</label>
+                                                    <input type="text" 
+                                                           class="form-control" 
+                                                           name="series" 
+                                                           value="{{ product.series or '' }}">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Формат</label>
+                                                    <select class="form-select" name="format_value">
+                                                        <option value="full" {% if not product.attrs_json or (product.attrs_json|from_json).get('format') == 'full' %}selected{% endif %}>Full</option>
+                                                        <option value="tester" {% if product.attrs_json and (product.attrs_json|from_json).get('format') == 'tester' %}selected{% endif %}>Tester</option>
+                                                        <option value="decant" {% if product.attrs_json and (product.attrs_json|from_json).get('format') == 'decant' %}selected{% endif %}>Decant</option>
+                                                        <option value="sample" {% if product.attrs_json and (product.attrs_json|from_json).get('format') == 'sample' %}selected{% endif %}>Sample</option>
+                                                        <option value="mini" {% if product.attrs_json and (product.attrs_json|from_json).get('format') == 'mini' %}selected{% endif %}>Mini</option>
+                                                    </select>
+                                                </div>
+                                                {% if product.attrs_json %}
+                                                {% set attrs = product.attrs_json|from_json %}
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Объём (мл)</label>
+                                                    <input type="number" 
+                                                           class="form-control" 
+                                                           name="volume_ml" 
+                                                           value="{{ attrs.volume_ml or '' }}">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Цвет</label>
+                                                    <input type="text" 
+                                                           class="form-control" 
+                                                           name="color" 
+                                                           value="{{ attrs.color or '' }}">
+                                                </div>
+                                                {% else %}
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Объём (мл)</label>
+                                                    <input type="number" 
+                                                           class="form-control" 
+                                                           name="volume_ml" 
+                                                           value="">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Цвет</label>
+                                                    <input type="text" 
+                                                           class="form-control" 
+                                                           name="color" 
+                                                           value="">
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            
+                                            <div class="form-check mt-3">
+                                                <input class="form-check-input" type="checkbox" name="create_alias" id="createAlias{{ product.id }}" value="1">
+                                                <label class="form-check-label" for="createAlias{{ product.id }}">
+                                                    Создать алиас бренда из исходного названия
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                            <button type="submit" class="btn btn-primary">Сохранить и применить</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% if products|length == 0 %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">Нет записей для ревью</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if pages > 1 %}
+            <nav aria-label="Пагинация">
+                <ul class="pagination mb-0">
+                    {% set prev_page = page - 1 if page > 1 else 1 %}
+                    {% set next_page = page + 1 if page < pages else pages %}
+                    <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                        <a class="page-link" href="?page={{ prev_page }}&status_filter={{ status_filter }}">«</a>
+                    </li>
+                    <li class="page-item disabled"><span class="page-link">Стр. {{ page }} из {{ pages }}</span></li>
+                    <li class="page-item {% if page == pages %}disabled{% endif %}">
+                        <a class="page-link" href="?page={{ next_page }}&status_filter={{ status_filter }}">»</a>
+                    </li>
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Функция для парсинга JSON в шаблоне (если нет встроенной)
+function parseJson(str) {
+    try {
+        return JSON.parse(str);
+    } catch (e) {
+        return {};
+    }
+}
+
+// Автозаполнение алиаса бренда
+function updateBrandAlias(productId) {
+    const modelInput = document.getElementById(`model_name_${productId}`);
+    const aliasInput = document.getElementById(`brand_alias_${productId}`);
+    if (!modelInput || !aliasInput) return;
+    
+    const rawNameInput = aliasInput.dataset.rawName;
+    if (!rawNameInput) return;
+    
+    const modelName = modelInput.value.trim();
+    const rawName = rawNameInput;
+    
+    // Если алиас уже заполнен вручную, не перезаписываем
+    if (aliasInput.value.trim() && aliasInput.dataset.manual === 'true') {
+        return;
+    }
+    
+    // Извлекаем алиас из raw_name
+    let alias = extractBrandAlias(rawName, modelName);
+    
+    if (alias) {
+        aliasInput.value = alias;
+        aliasInput.dataset.manual = 'false';
+    }
+}
+
+// Функция извлечения алиаса (аналогична серверной логике)
+function extractBrandAlias(rawName, modelName) {
+    if (!rawName) return "";
+    
+    rawName = rawName.trim();
+    
+    // Стоп-слова
+    const stopWords = new Set([
+        'унисекс', 'женск', 'женский', 'мужск', 'мужской',
+        'парф', 'парфюмерная', 'туалет', 'туалетная', 'вода',
+        'мл', 'ml', 'г', 'гр', 'g', 'gr',
+        'тестер', '(тестер)', 'отливант', 'пробник', 'sample',
+        'духи', 'edp', 'edt', 'eau', 'de', 'parfum', 'toilette',
+        'миниатюра', 'mini', 'decant', 'for', 'women', 'men'
+    ]);
+    
+    // Если есть > → всё до первого >
+    if (rawName.includes('>')) {
+        const parts = rawName.split('>', 1);
+        const candidate = parts[0].trim();
+        if (candidate) {
+            return candidate;
+        }
+    }
+    
+    // Если есть modelName, пытаемся найти его в rawName
+    if (modelName && modelName.trim()) {
+        const modelLower = modelName.trim().toLowerCase();
+        const rawLower = rawName.toLowerCase();
+        
+        const modelPos = rawLower.indexOf(modelLower);
+        if (modelPos > 0) {
+            let candidate = rawName.substring(0, modelPos).trim();
+            // Очищаем от лишних символов в конце
+            candidate = candidate.replace(/[^\w&\-\.\s]+$/, '').trim();
+            if (candidate && candidate.length >= 2) {
+                return candidate;
+            }
+        }
+    }
+    
+    // Иначе берем первые 2-5 слов до стоп-слов
+    const words = rawName.split();
+    let stopPos = null;
+    
+    for (let i = 0; i < words.length; i++) {
+        const wordLower = words[i].toLowerCase().replace(/[.,;:()\[\]{}]/g, '');
+        if (stopWords.has(wordLower)) {
+            stopPos = i;
+            break;
+        }
+    }
+    
+    let maxWords;
+    if (stopPos !== null) {
+        maxWords = Math.min(5, stopPos);
+    } else {
+        maxWords = Math.min(5, words.length);
+    }
+    
+    // Минимум 2 слова для многословных брендов
+    if (maxWords < 2) {
+        maxWords = Math.min(2, words.length);
+    }
+    
+    if (maxWords === 0) {
+        return "";
+    }
+    
+    const candidateWords = words.slice(0, maxWords);
+    let candidate = candidateWords.join(' ').trim();
+    
+    // Очищаем от лишних символов
+    candidate = candidate.replace(/^[^\w&\-\.]+|[^\w&\-\.]+$/g, '');
+    
+    return candidate && candidate.length >= 2 ? candidate : "";
+}
+
+// Отслеживаем ручное редактирование алиаса
+document.addEventListener('DOMContentLoaded', function() {
+    // Для всех полей алиаса
+    document.querySelectorAll('input[name="brand_alias"]').forEach(function(input) {
+        input.addEventListener('input', function() {
+            this.dataset.manual = 'true';
+        });
+    });
+});
+
+// Поиск через Fragella API
+async function searchViaFragella(productId, rawName) {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = 'Поиск...';
+    
+    try {
+        const response = await fetch(`/normalization/search-fragella/${productId}`);
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+            // Открываем модальное окно и заполняем данные
+            const modal = new bootstrap.Modal(document.getElementById(`reviewModal${productId}`));
+            modal.show();
+            
+            // Заполняем поля формы
+            const form = document.querySelector(`#reviewModal${productId} form`);
+            if (form) {
+                const brandInput = form.querySelector('input[name="norm_brand"]');
+                const modelInput = form.querySelector('input[name="model_name"]');
+                const genderSelect = form.querySelector('select[name="gender"]');
+                
+                if (brandInput && data.data.brand) {
+                    brandInput.value = data.data.brand;
+                }
+                if (modelInput && data.data.model_name) {
+                    modelInput.value = data.data.model_name;
+                }
+                if (genderSelect && data.data.gender) {
+                    genderSelect.value = data.data.gender;
+                }
+                
+                // Показываем информацию о найденных результатах
+                if (data.data.all_results && data.data.all_results.length > 1) {
+                    const infoDiv = document.createElement('div');
+                    infoDiv.className = 'alert alert-info mt-2';
+                    infoDiv.innerHTML = `<strong>Найдено ${data.data.all_results.length} результатов:</strong><br>` +
+                        data.data.all_results.map((r, i) => 
+                            `${i+1}. ${r.Brand || r.brand || ''} ${r.Name || r.name || ''}`
+                        ).join('<br>');
+                    form.querySelector('.modal-body').appendChild(infoDiv);
+                }
+            }
+            
+            alert('Данные найдены через Fragella и заполнены в форму!');
+        } else {
+            const errorMsg = data.error || 'Неизвестная ошибка';
+            console.error('Fragella search failed:', data);
+            alert('Не удалось найти через Fragella:\n' + errorMsg);
+        }
+    } catch (error) {
+        console.error('Fragella search error:', error);
+        let errorMsg = 'Неизвестная ошибка';
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+            errorMsg = 'Ошибка сети при обращении к серверу';
+        } else if (error.message) {
+            errorMsg = error.message;
+        }
+        alert('Ошибка при поиске через Fragella:\n' + errorMsg);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+</script>
+{% endblock %}
+

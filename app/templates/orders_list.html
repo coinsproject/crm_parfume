@@ -44,25 +44,107 @@
                         <th>Статус</th>
                         <th>Сумма</th>
                         <th>Дата</th>
+                        <th>Действия</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for order in orders %}
-                    <tr>
+                    {% for item in orders_with_permissions %}
+                    {% set order = item.order %}
+                    {% if order.client %}
+                        {% set client_name = order.client.name or '' %}
+                        {% set client_last_name = order.client.last_name or '' %}
+                        {% set client_full_name = (client_name + ' ' + client_last_name).strip() %}
+                    {% else %}
+                        {% set client_full_name = '' %}
+                    {% endif %}
+                    <tr class="order-row" data-order-id="{{ order.id }}" data-status="{{ order.status.lower() }}">
                         <td><a href="/orders/{{ order.id }}">{{ order.id }}</a></td>
-                        <td>{{ order.client.name if order.client else '-' }}</td>
+                        <td>{{ client_full_name if client_full_name else '-' }}</td>
                         {% if not is_partner_user %}<td>{{ order.partner.full_name if order.partner else '-' }}</td>{% endif %}
-                        <td>{{ status_labels.get(order.status, order.status) }}</td>
+                        <td>
+                            <form method="post" action="/orders/{{ order.id }}/status" style="display: inline;" class="status-form">
+                                <input type="hidden" name="return_to" value="list">
+                                <select name="status" class="form-select form-select-sm order-status-select" 
+                                        style="min-width: 150px; display: inline-block;"
+                                        data-current-status="{{ order.status.lower() }}"
+                                        data-order-id="{{ order.id }}"
+                                        onchange="updateStatusColor(this); highlightRow(this); this.form.submit();">
+                                    {% for code, label in status_choices %}
+                                    <option value="{{ code }}" 
+                                            {% if order.status == code %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </form>
+                        </td>
                         <td>{{ order.total_amount }}</td>
                         <td>{{ order.created_at.strftime('%d.%m.%Y') if order.created_at else '-' }}</td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="/orders/{{ order.id }}" class="btn btn-sm btn-outline-primary">Просмотр</a>
+                                {% if item.can_delete %}
+                                <form method="post" action="/orders/{{ order.id }}/delete" style="display: inline;" onsubmit="return confirm('Вы уверены, что хотите удалить заказ #{{ order.id }}? Это действие нельзя отменить.');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
                     </tr>
                     {% endfor %}
-                    {% if orders|length == 0 %}
-                    <tr><td colspan="{% if is_partner_user %}5{% else %}6{% endif %}" class="text-center text-muted">Нет доступных заказов</td></tr>
+                    {% if orders_with_permissions|length == 0 %}
+                    <tr><td colspan="{% if is_partner_user %}6{% else %}7{% endif %}" class="text-center text-muted">Нет доступных заказов</td></tr>
                     {% endif %}
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+
+<script>
+// Функция для обновления цвета select в зависимости от выбранного статуса
+function updateStatusColor(select) {
+    const statusColors = {
+        'new': '#3b82f6',
+        'waiting_payment': '#f59e0b',
+        'paid': '#10b981',
+        'packing': '#06b6d4',
+        'shipped': '#8b5cf6',
+        'delivered': '#059669',
+        'cancelled': '#ef4444',
+        'returned': '#f97316'
+    };
+    
+    const selectedValue = select.value.toLowerCase();
+    const color = statusColors[selectedValue] || '#6b7280';
+    select.style.backgroundColor = color;
+    select.style.color = 'white';
+}
+
+// Функция для подсветки строки при смене статуса
+function highlightRow(select) {
+    const orderId = select.getAttribute('data-order-id');
+    const row = document.querySelector(`tr.order-row[data-order-id="${orderId}"]`);
+    if (row) {
+        // Добавляем класс для подсветки
+        row.classList.add('status-changing');
+        
+        // Убираем подсветку через 2 секунды
+        setTimeout(function() {
+            row.classList.remove('status-changing');
+            // Обновляем data-status атрибут строки
+            const newStatus = select.value.toLowerCase();
+            row.setAttribute('data-status', newStatus);
+        }, 2000);
+    }
+}
+
+// Применяем цвета ко всем select при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    const statusSelects = document.querySelectorAll('.order-status-select');
+    statusSelects.forEach(function(select) {
+        updateStatusColor(select);
+    });
+});
+</script>
 {% endblock %}

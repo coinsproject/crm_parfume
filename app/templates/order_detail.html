@@ -5,8 +5,13 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="mb-0">Заказ #{{ order.id }}</h2>
-        <div>
+        <div class="d-flex gap-2">
             <a href="/orders/{{ order.id }}/edit" class="btn btn-outline-primary btn-sm">Редактировать</a>
+            {% if can_delete %}
+            <form method="post" action="/orders/{{ order.id }}/delete" style="display: inline;" onsubmit="return confirm('Вы уверены, что хотите удалить этот заказ? Это действие нельзя отменить.');">
+                <button type="submit" class="btn btn-outline-danger btn-sm">Удалить</button>
+            </form>
+            {% endif %}
             <a href="/orders" class="btn btn-secondary btn-sm">Назад</a>
         </div>
     </div>
@@ -38,7 +43,18 @@
             <div class="card h-100">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 text-muted">Статус</h6>
-                    <p class="card-text">{{ status_labels.get(order.status, order.status) }}</p>
+                    <div class="mb-2">
+                        <span class="order-status status-{{ order.status.lower() }}">
+                            {{ status_labels.get(order.status, order.status) }}
+                        </span>
+                    </div>
+                    <form method="post" action="/orders/{{ order.id }}/status" id="status-form" style="display: inline;" enctype="application/x-www-form-urlencoded">
+                        <select name="status" class="form-select form-select-sm" id="order-status-select" onchange="this.form.submit()" style="max-width: 200px;">
+                            {% for code, label in status_choices %}
+                            <option value="{{ code }}" {% if order.status == code %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </form>
                 </div>
             </div>
         </div>
@@ -54,6 +70,8 @@
                     {% if can_view_client_price %}<th>Сумма для клиента</th>{% endif %}
                     {% if can_view_cost %}<th>Себестоимость</th>{% endif %}
                     {% if can_view_margin %}<th>Маржа</th>{% endif %}
+                    {% if can_view_margin and order.partner_id %}<th>Маржа админа</th>{% endif %}
+                    {% if can_view_margin and order.partner_id %}<th>Маржа партнера</th>{% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -83,6 +101,8 @@
                     {% if can_view_client_price %}<td>{{ item.line_client_amount }}</td>{% endif %}
                     {% if can_view_cost %}<td>{{ item.cost_for_owner }}</td>{% endif %}
                     {% if can_view_margin %}<td>{{ item.line_margin }}</td>{% endif %}
+                    {% if can_view_margin and order.partner_id %}<td>{{ item.line_admin_margin or 0 }}</td>{% endif %}
+                    {% if can_view_margin and order.partner_id %}<td>{{ item.line_partner_margin or 0 }}</td>{% endif %}
                 </tr>
                 {% endfor %}
             </tbody>
@@ -115,8 +135,18 @@
                     <p class="card-text fw-bold">
                         {% if can_view_margin %}
                             {{ order.total_margin_for_owner }}
-                            {% if order.total_margin_percent is not none %}
-                                ({{ "{:.2f}".format(order.total_margin_percent) }}%)
+                            {% if order.partner_id %}
+                                {% if order.total_margin_percent is not none %}
+                                    <br><small class="text-muted">({{ "{:.2f}".format(order.total_margin_percent) }}%)</small>
+                                {% endif %}
+                                {% if order.total_admin_margin_percent is not none and order.total_partner_margin_percent is not none %}
+                                    <br><small class="text-muted">Админ: {{ order.total_admin_margin or 0 }} ({{ "{:.2f}".format(order.total_admin_margin_percent) }}%)</small>
+                                    <br><small class="text-muted">Партнер: {{ order.total_partner_margin or 0 }} ({{ "{:.2f}".format(order.total_partner_margin_percent) }}%)</small>
+                                {% endif %}
+                            {% else %}
+                                {% if order.total_margin_percent is not none %}
+                                    ({{ "{:.2f}".format(order.total_margin_percent) }}%)
+                                {% endif %}
                             {% endif %}
                         {% else %}—{% endif %}
                     </p>

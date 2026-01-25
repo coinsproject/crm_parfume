@@ -1,0 +1,75 @@
+{% extends "layout.html" %}
+
+{% block title %}Релиз-ноутсы{% endblock %}
+
+{% block page_title %}Релиз-ноутсы{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>История изменений</h2>
+        <div>
+            <span class="badge bg-primary">Текущая версия: {{ current_version }}</span>
+            {% if current_user.role and current_user.role.name == 'ADMIN' %}
+            <a href="/release_notes/admin/new" class="btn btn-primary btn-sm ms-2">
+                <i class="fas fa-plus"></i> Создать релиз-ноутс
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if release_notes %}
+    <div class="row">
+        {% for note in release_notes %}
+        <div class="col-md-6 mb-3">
+            <div class="card h-100 {% if note.is_important %}border-warning{% endif %}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0">
+                            {% if note.is_important %}
+                            <span class="badge bg-warning me-2">Важно</span>
+                            {% endif %}
+                            {{ note.title }}
+                        </h5>
+                        <small class="text-muted">Версия {{ note.version }}</small>
+                    </div>
+                    <span class="badge 
+                        {% if note.release_type == 'major' %}bg-danger
+                        {% elif note.release_type == 'minor' %}bg-primary
+                        {% else %}bg-secondary{% endif %}">
+                        {{ note.release_type }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-2">
+                        <i class="fas fa-calendar"></i> {{ note.release_date.strftime('%d.%m.%Y') if note.release_date else '' }}
+                    </p>
+                    {% if note.description %}
+                    <p class="card-text">{{ note.description[:200] }}{% if note.description|length > 200 %}...{% endif %}</p>
+                    {% endif %}
+                    {% if note.changes %}
+                    <div class="mt-2">
+                        <small class="text-muted">Изменения:</small>
+                        <pre class="small bg-light p-2 rounded mt-1" style="white-space: pre-wrap; max-height: 150px; overflow-y: auto;">{{ note.changes }}</pre>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <a href="/release_notes/{{ note.id }}" class="btn btn-sm btn-outline-primary">Подробнее</a>
+                    {% if current_user.role and current_user.role.name == 'ADMIN' %}
+                    <a href="/release_notes/admin/{{ note.id }}/edit" class="btn btn-sm btn-outline-secondary">Редактировать</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">Пока нет релиз-ноутсов</div>
+    {% endif %}
+</div>
+{% endblock %}
+
+
+
+

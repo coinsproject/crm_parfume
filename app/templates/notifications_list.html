@@ -1,0 +1,60 @@
+{% extends "layout.html" %}
+
+{% block title %}Уведомления{% endblock %}
+
+{% block page_title %}Уведомления{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Уведомления</h2>
+        <form method="post" action="/notifications/read_all" style="display:inline;">
+            <button type="submit" class="btn btn-outline-secondary btn-sm">Отметить все как прочитанные</button>
+        </form>
+    </div>
+    
+    {% if notifications %}
+    <div class="list-group">
+        {% for notification in notifications %}
+        <div class="list-group-item {% if not notification.is_read %}list-group-item-action{% endif %}">
+            <div class="d-flex w-100 justify-content-between">
+                <h5 class="mb-1">
+                    {% if not notification.is_read %}
+                    <span class="badge bg-primary me-2">Новое</span>
+                    {% endif %}
+                    {{ notification.title }}
+                </h5>
+                <small>{{ notification.created_at.strftime('%d.%m.%Y %H:%M') if notification.created_at else '' }}</small>
+            </div>
+            {% if notification.message %}
+            <p class="mb-1">{{ notification.message }}</p>
+            {% endif %}
+            {% if notification.related_type and notification.related_id %}
+            <div class="mt-2">
+                {% if notification.related_type == 'purchase_request' %}
+                <a href="/purchase_requests/{{ notification.related_id }}" class="btn btn-sm btn-outline-primary">Перейти к запросу</a>
+                {% elif notification.related_type == 'order' %}
+                <a href="/orders/{{ notification.related_id }}" class="btn btn-sm btn-outline-primary">Перейти к заказу</a>
+                {% endif %}
+                {% if not notification.is_read %}
+                <form method="post" action="/notifications/{{ notification.id }}/read" style="display:inline;" class="ms-2">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">Отметить как прочитанное</button>
+                </form>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">Нет уведомлений</div>
+    {% endif %}
+</div>
+{% endblock %}
+
+
+
+
+
+
+

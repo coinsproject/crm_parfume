@@ -1,0 +1,168 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    {% if brand %}Редактирование бренда{% else %}Создание бренда{% endif %} - Parfume CRM
+{% endblock %}
+
+{% block page_title %}
+    {% if brand %}Редактирование бренда{% else %}Создание бренда{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        {% if brand %}Редактирование бренда{% else %}Создание бренда{% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% if brand %}/admin/brands/{{ brand.id }}{% else %}/admin/brands/create{% endif %}">
+                        <div class="mb-3">
+                            <label for="name_canonical" class="form-label">Название бренда <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="name_canonical" name="name_canonical" 
+                                   value="{% if brand %}{{ brand.name_canonical }}{% endif %}" 
+                                   required placeholder="Например: Abercrombie & Fitch">
+                            <div class="form-text">Каноническое название бренда (будет использоваться для поиска и нормализации)</div>
+                        </div>
+                        {% if not brand %}
+                        <div class="mb-3">
+                            <label for="alias" class="form-label">Алиас (опционально)</label>
+                            <input type="text" class="form-control" id="alias" name="alias" 
+                                   placeholder="Например: Abercrombie and Fitch">
+                            <div class="form-text">Альтернативное написание бренда. Если не указано, будет создан алиас из названия бренда.</div>
+                        </div>
+                        {% endif %}
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Сохранить
+                            </button>
+                            <a href="/admin/brands" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Отмена
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {% if brand %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Алиасы бренда</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="/admin/brands/{{ brand.id }}/aliases" class="mb-3">
+                        <div class="input-group">
+                            <input type="text" class="form-control" name="alias" 
+                                   placeholder="Например: Abercrombie and Fitch" required>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>Добавить алиас
+                            </button>
+                        </div>
+                        <div class="form-text mt-1">Алиасы используются для поиска бренда по альтернативным написаниям</div>
+                    </form>
+
+                    {% if aliases %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Алиас</th>
+                                    <th>Создан</th>
+                                    <th class="text-end">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for alias in aliases %}
+                                <tr>
+                                    <td><code>{{ alias.alias_upper }}</code></td>
+                                    <td>
+                                        {% if alias.created_at %}
+                                        {{ alias.created_at.strftime('%d.%m.%Y %H:%M') }}
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <form method="post" action="/admin/brands/{{ brand.id }}/aliases/{{ alias.id }}/delete" 
+                                              class="d-inline" 
+                                              onsubmit="return confirm('Удалить алиас \'{{ alias.alias_upper }}\'?');">
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="fas fa-trash me-1"></i>Удалить
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Алиасы не добавлены. Добавьте алиасы для альтернативных написаний бренда.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Информация</h5>
+                </div>
+                <div class="card-body">
+                    {% if brand %}
+                    <dl class="mb-0">
+                        <dt>ID</dt>
+                        <dd>{{ brand.id }}</dd>
+                        
+                        <dt>Название</dt>
+                        <dd>{{ brand.name_canonical }}</dd>
+                        
+                        <dt>Алиасов</dt>
+                        <dd>{{ aliases|length }}</dd>
+                        
+                        {% if brand.created_at %}
+                        <dt>Создан</dt>
+                        <dd>{{ brand.created_at.strftime('%d.%m.%Y %H:%M') }}</dd>
+                        {% endif %}
+                        
+                        {% if brand.updated_at %}
+                        <dt>Обновлен</dt>
+                        <dd>{{ brand.updated_at.strftime('%d.%m.%Y %H:%M') }}</dd>
+                        {% endif %}
+                    </dl>
+                    {% else %}
+                    <p class="text-muted mb-0">
+                        Создайте новый бренд. После создания вы сможете добавить алиасы для альтернативных написаний.
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Справка</h5>
+                </div>
+                <div class="card-body">
+                    <p class="small mb-2">
+                        <strong>Бренд</strong> — каноническое название, которое используется в системе.
+                    </p>
+                    <p class="small mb-2">
+                        <strong>Алиас</strong> — альтернативное написание бренда для поиска. Например, "Abercrombie and Fitch" может быть алиасом для "Abercrombie & Fitch".
+                    </p>
+                    <p class="small mb-0">
+                        Алиасы автоматически используются при нормализации прайса для поиска брендов.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

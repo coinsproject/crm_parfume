@@ -1,0 +1,140 @@
+{% extends "layout.html" %}
+
+{% block title %}Бренды и алиасы - Parfume CRM{% endblock %}
+
+{% block page_title %}Бренды и алиасы{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h4 mb-0">Бренды и алиасы</h1>
+        <div class="d-flex gap-2">
+            <a href="/admin/brands/bootstrap" class="btn btn-outline-primary">
+                <i class="fas fa-magic me-2"></i>Бутстрап из прайса
+            </a>
+            <a href="/admin/brands/create" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Добавить бренд
+            </a>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="get" action="/admin/brands" class="row g-3 align-items-end">
+                <div class="col-md-8">
+                    <label class="form-label">Поиск</label>
+                    <input type="text" class="form-control" name="q" value="{{ q }}" 
+                           placeholder="Название бренда или алиаса...">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Найти</button>
+                </div>
+                <div class="col-md-2">
+                    <a href="/admin/brands" class="btn btn-outline-secondary w-100">Сбросить</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="mb-2">
+                <span class="text-muted">Всего: {{ total }} брендов</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Название</th>
+                            <th>Алиасов</th>
+                            <th>Создан</th>
+                            <th>Обновлен</th>
+                            <th class="text-end">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if brands %}
+                        {% for brand in brands %}
+                        <tr>
+                            <td>{{ brand.id }}</td>
+                            <td>
+                                <strong>{{ brand.name_canonical }}</strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-info">{{ brand.aliases_count }}</span>
+                            </td>
+                            <td>
+                                {% if brand.created_at %}
+                                <small>{{ brand.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if brand.updated_at %}
+                                <small>{{ brand.updated_at.strftime('%d.%m.%Y %H:%M') }}</small>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="/admin/brands/{{ brand.id }}" class="btn btn-sm btn-primary" title="Редактировать бренд и управлять алиасами">
+                                    <i class="fas fa-edit me-1"></i>Редактировать
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                {% if q %}
+                                Бренды не найдены
+                                {% else %}
+                                Нет брендов. <a href="/admin/brands/create">Создать первый бренд</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if pages > 1 %}
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    {% if page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page - 1 }}{% if q %}&q={{ q }}{% endif %}">Предыдущая</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for p in range(1, pages + 1) %}
+                    {% if p == page %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ p }}</span>
+                    </li>
+                    {% elif p == 1 or p == pages or (p >= page - 2 and p <= page + 2) %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ p }}{% if q %}&q={{ q }}{% endif %}">{{ p }}</a>
+                    </li>
+                    {% elif p == page - 3 or p == page + 3 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if page < pages %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page + 1 }}{% if q %}&q={{ q }}{% endif %}">Следующая</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+

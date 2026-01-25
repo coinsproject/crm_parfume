@@ -1,20 +1,423 @@
 {% extends "layout.html" %}
 {% block title %}Поиск по прайсу{% endblock %}
 {% block page_title %}Поиск по прайсу{% endblock %}
+{% block head %}
+<style>
+    .filters-bar {
+        margin-bottom: 1rem;
+    }
+
+    .chips-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 16px;
+        border-radius: 16px;
+        border: 1px solid #dee2e6;
+        background-color: #ffffff;
+        color: #212529;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: opacity 0.15s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+        white-space: nowrap;
+        text-decoration: none !important;
+        outline: none;
+        box-shadow: none;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    .chip:hover {
+        background-color: #f8f9fa;
+        border-color: #adb5bd;
+        color: #212529;
+    }
+
+    .chip:focus {
+        outline: none;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+
+    .chip.active {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+        color: #ffffff;
+    }
+
+    .chip.active:hover {
+        background-color: #0b5ed7;
+        border-color: #0a58ca;
+        color: #ffffff;
+    }
+
+    .chip.active:focus {
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.5);
+    }
+
+    .chip .check {
+        margin-right: 6px;
+        font-weight: bold;
+    }
+    
+    /* Фиксированные колонки таблицы */
+    .price-table-custom {
+        table-layout: fixed;
+        width: 100%;
+    }
+    
+    .price-table-custom th:first-child,
+    .price-table-custom td:first-child {
+        width: 120px;
+        min-width: 120px;
+    }
+    
+    .price-table-custom th:nth-child(2),
+    .price-table-custom td:nth-child(2) {
+        width: auto;
+        min-width: 200px;
+    }
+    
+    /* Колонки с ценами - фиксированная ширина */
+    .price-table-custom th:nth-child(3),
+    .price-table-custom td:nth-child(3),
+    .price-table-custom th:nth-child(4),
+    .price-table-custom td:nth-child(4),
+    .price-table-custom th:nth-child(5),
+    .price-table-custom td:nth-child(5) {
+        width: 150px;
+        min-width: 150px;
+        text-align: right;
+    }
+    
+    .price-table-custom th:last-child,
+    .price-table-custom td:last-child {
+        width: 140px;
+        min-width: 140px;
+        white-space: nowrap;
+    }
+    
+    .price-table-custom td:last-child .btn {
+        white-space: nowrap;
+    }
+    
+    .price-table-custom td {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+    
+    .price-table-custom td:last-child {
+        word-wrap: normal;
+        overflow-wrap: normal;
+    }
+    
+    /* Neumorphic Toggle Switch */
+    .neumorphic-toggle-container {
+        margin-top: 0.5rem;
+    }
+    
+    .neumorphic-toggle-input {
+        display: none;
+    }
+    
+    .neumorphic-toggle-label {
+        position: relative;
+        display: inline-block;
+        width: 80px;
+        height: 40px;
+        cursor: pointer;
+    }
+    
+    .neumorphic-toggle-slider {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #e0e0e0;
+        border-radius: 20px;
+        transition: 0.3s;
+        box-shadow: 
+            inset 4px 4px 8px rgba(0, 0, 0, 0.1),
+            inset -4px -4px 8px rgba(255, 255, 255, 0.8);
+    }
+    
+    .neumorphic-toggle-slider:before {
+        content: "";
+        position: absolute;
+        height: 32px;
+        width: 32px;
+        left: 4px;
+        bottom: 4px;
+        background: #ffffff;
+        border-radius: 50%;
+        transition: 0.3s;
+        box-shadow: 
+            2px 2px 4px rgba(0, 0, 0, 0.2),
+            -2px -2px 4px rgba(255, 255, 255, 0.8);
+    }
+    
+    .neumorphic-toggle-input:checked + .neumorphic-toggle-label .neumorphic-toggle-slider {
+        background: #4ade80;
+        box-shadow: 
+            inset 4px 4px 8px rgba(0, 0, 0, 0.1),
+            inset -4px -4px 8px rgba(255, 255, 255, 0.3);
+    }
+    
+    .neumorphic-toggle-input:checked + .neumorphic-toggle-label .neumorphic-toggle-slider:before {
+        transform: translateX(40px);
+        box-shadow: 
+            2px 2px 4px rgba(0, 0, 0, 0.2),
+            -2px -2px 4px rgba(255, 255, 255, 0.8);
+    }
+    
+    .neumorphic-toggle-text {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 10px;
+        font-weight: 600;
+        color: rgba(0, 0, 0, 0.4);
+        transition: 0.3s;
+        pointer-events: none;
+    }
+    
+    .neumorphic-toggle-input:not(:checked) + .neumorphic-toggle-label .neumorphic-toggle-text {
+        left: 12px;
+        color: rgba(0, 0, 0, 0.4);
+    }
+    
+    .neumorphic-toggle-input:checked + .neumorphic-toggle-label .neumorphic-toggle-text {
+        right: 12px;
+        color: rgba(255, 255, 255, 0.9);
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+</style>
+{% endblock %}
 {% block content %}
 <div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h1 class="h4 mb-0">Поиск по прайсу</h1>
+            {% if upload_date_moscow %}
+            <small class="text-muted">Дата загрузки прайса: {{ upload_date_moscow.strftime('%d.%m.%Y %H:%M') }} (МСК)</small>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Панель разделов и фильтров -->
     <div class="card mb-3">
         <div class="card-body">
-            <form method="get" action="/price/search" class="row g-3 align-items-end">
-                <div class="col-md-4">
-                    <label class="form-label">Поиск</label>
-                    <input type="text" class="form-control" name="q" value="{{ q }}" placeholder="Например: byredo помада 3 г">
+            {# current_section используется для логики отображения - НЕ устанавливаем по умолчанию #}
+            {% set current_section = section %}
+            {% set pf_list = (pf or "").split(",") if pf else [] %}
+
+            <!-- Вспомогательная функция для построения URL - сохраняем ВСЕ параметры поиска -->
+            {% set base_url_parts = [] %}
+            {% if q %}{% set _ = base_url_parts.append("q=" + q|urlencode) %}{% endif %}
+            {% if hide_decant %}{% set _ = base_url_parts.append("hide_decant=1") %}{% endif %}
+            {% if selected_brand %}{% set _ = base_url_parts.append("brand=" + selected_brand|urlencode) %}{% endif %}
+            {% if selected_gender %}{% set _ = base_url_parts.append("gender=" + selected_gender|urlencode) %}{% endif
+            %}
+            {% if client_id %}{% set _ = base_url_parts.append("client_id=" + client_id|string) %}{% endif %}
+            {% if ptype %}{% set _ = base_url_parts.append("ptype=" + ptype|urlencode) %}{% endif %}
+            {% if psub %}{% set _ = base_url_parts.append("psub=" + psub|urlencode) %}{% endif %}
+            {% if upload_id %}{% set _ = base_url_parts.append("upload_id=" + upload_id|string) %}{% endif %}
+            {% if page and page != 1 %}{% set _ = base_url_parts.append("page=" + page|string) %}{% endif %}
+            {% if page_size and page_size != 20 %}{% set _ = base_url_parts.append("page_size=" + page_size|string) %}{%
+            endif %}
+            {% set base_url_query = base_url_parts|join("&") %}
+
+            {% if is_admin %}
+            <!-- Разделы (single-select) -->
+            <div class="filters-bar mb-3">
+                <div class="chips-row d-flex flex-wrap gap-2 align-items-center">
+                    {% for section_item in sections %}
+                    {# Для "parfum" не добавляем section в URL, если он пустой (чтобы не было редиректа) #}
+                    {% if section_item.key == "parfum" and not section %}
+                    {% set section_url_parts = [] %}
+                    {% else %}
+                    {% set section_url_parts = ["section=" + section_item.key|urlencode] %}
+                    {% endif %}
+                    {% if base_url_query %}{% set _ = section_url_parts.append(base_url_query) %}{% endif %}
+                    {% if section_url_parts %}
+                    {% set section_url = "/price/search?" + section_url_parts|join("&") %}
+                    {% else %}
+                    {% set section_url = "/price/search" %}
+                    {% endif %}
+                    {# Чип активен только если section явно указан и совпадает #}
+                    {% set is_active = False %}
+                    {% if section and section == section_item.key %}
+                    {% set is_active = True %}
+                    {% endif %}
+                    <a href="{{ section_url }}" class="chip {% if is_active %}active{% endif %}">
+                        {% if is_active %}<span class="check">✓</span>{% endif %}
+                        {{ section_item.label }}
+                    </a>
+                    {% endfor %}
                 </div>
+            </div>
+
+            <!-- Внутренние фильтры Парфюма (multi-select) -->
+            {% if section == "parfum" %}
+            <div class="filters-bar">
+                <div class="chips-row d-flex flex-wrap gap-2 align-items-center">
+                    {% set parfum_filters = [
+                    {"key": "sets", "label": "Наборы"},
+                    {"key": "tester", "label": "Тестеры"},
+                    {"key": "analog", "label": "Аналог"},
+                    {"key": "decant", "label": "Отливант"},
+                    {"key": "mini", "label": "Миниатюра"}
+                    ] %}
+                    {% for pf_item in parfum_filters %}
+                    {% set new_pf_list = [] %}
+                    {% for existing_pf in pf_list %}
+                    {% if existing_pf != pf_item.key %}
+                    {% set _ = new_pf_list.append(existing_pf) %}
+                    {% endif %}
+                    {% endfor %}
+                    {% if pf_item.key not in pf_list %}
+                    {% set _ = new_pf_list.append(pf_item.key) %}
+                    {% endif %}
+                    {% set pf_value = new_pf_list|join(",") if new_pf_list else "" %}
+                    {# Строим URL для фильтра парфюма: меняем только pf, остальное сохраняем #}
+                    {% set pf_url_parts = [] %}
+                    {# Сохраняем section (если он есть), иначе не добавляем (чтобы не было редиректа) #}
+                    {% if section %}
+                    {% set _ = pf_url_parts.append("section=parfum") %}
+                    {% endif %}
+                    {# Меняем только pf #}
+                    {% if pf_value %}{% set _ = pf_url_parts.append("pf=" + pf_value|urlencode) %}{% endif %}
+                    {# Сохраняем ВСЕ остальные параметры поиска (q, brand, gender и т.д.) #}
+                    {% if base_url_query %}{% set _ = pf_url_parts.append(base_url_query) %}{% endif %}
+                    {% if pf_url_parts %}
+                    {% set pf_url = "/price/search?" + pf_url_parts|join("&") %}
+                    {% else %}
+                    {% set pf_url = "/price/search" %}
+                    {% endif %}
+                    <a href="{{ pf_url }}" class="chip {% if pf_item.key in pf_list %}active{% endif %}">
+                        {% if pf_item.key in pf_list %}<span class="check">✓</span>{% endif %}
+                        {{ pf_item.label }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Кнопка сброса -->
+            <div class="mt-3">
+                <a href="?q={{ q }}{% if client_id %}&client_id={{ client_id }}{% endif %}"
+                    class="btn btn-sm btn-outline-danger">
+                    Сбросить фильтры
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if is_admin %}
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="get" action="/price/search" class="row g-3 align-items-end" id="partner-filter-form">
+                <input type="hidden" name="section" value="{{ current_section }}" id="section-input-partner">
+                <input type="hidden" name="pf" value="{{ pf or "" }}" id="pf-input-partner">
+                {% if ptype %}
+                <input type="hidden" name="ptype" value="{{ ptype }}">
+                {% endif %}
+                {% if psub %}
+                <input type="hidden" name="psub" value="{{ psub }}">
+                {% endif %}
+                {% if q %}
+                <input type="hidden" name="q" value="{{ q }}">
+                {% endif %}
+                {% if selected_brand %}
+                <input type="hidden" name="brand" value="{{ selected_brand }}">
+                {% endif %}
+                {% if selected_gender %}
+                <input type="hidden" name="gender" value="{{ selected_gender }}">
+                {% endif %}
                 {% if client_id %}
-                    <input type="hidden" name="client_id" value="{{ client_id }}">
+                <input type="hidden" name="client_id" value="{{ client_id }}">
+                {% endif %}
+                <div class="col-md-4">
+                    <label class="form-label">Партнёр</label>
+                    <select class="form-select" name="partner_id" id="partner-select" onchange="this.form.submit()">
+                        <option value="">Все партнёры</option>
+                        {% for partner in partners_list %}
+                        <option value="{{ partner.id }}" {% if selected_partner_id == partner.id %}selected{% endif %}>{{ partner.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="get" action="/price/search" class="row g-3 align-items-end" id="search-form">
+                <input type="hidden" name="section" value="{{ current_section }}" id="section-input">
+                <input type="hidden" name="pf" value="{{ pf or "" }}" id="pf-input">
+                {% if ptype %}
+                <input type="hidden" name="ptype" value="{{ ptype }}">
+                {% endif %}
+                {% if psub %}
+                <input type="hidden" name="psub" value="{{ psub }}">
+                {% endif %}
+                {% if selected_partner_id %}
+                <input type="hidden" name="partner_id" value="{{ selected_partner_id }}" id="partner-input">
+                {% endif %}
+                <div class="col-md-3">
+                    <label class="form-label">Поиск</label>
+                    <input type="text" class="form-control" name="q" value="{{ q }}"
+                        placeholder="Например: byredo помада 3 г">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Отливант</label>
+                    <div class="neumorphic-toggle-container">
+                        <input type="checkbox" name="hide_decant" id="hide-decant-toggle" value="1" {% if hide_decant %}checked{% endif %} class="neumorphic-toggle-input">
+                        <label for="hide-decant-toggle" class="neumorphic-toggle-label">
+                            <span class="neumorphic-toggle-slider"></span>
+                            <span class="neumorphic-toggle-text">{% if hide_decant %}ON{% else %}OFF{% endif %}</span>
+                        </label>
+                    </div>
+                </div>
+                {% if is_admin %}
+                <div class="col-md-3">
+                    <label class="form-label">Бренд</label>
+                    <input type="text" class="form-control" name="brand" id="brand-input" value="{{ selected_brand }}"
+                        placeholder="Начните вводить название бренда..." list="brands-list" autocomplete="off">
+                    <datalist id="brands-list">
+                        {% for brand in brands_list %}
+                        <option value="{{ brand }}">
+                            {% endfor %}
+                    </datalist>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Пол</label>
+                    <select class="form-select" name="gender">
+                        <option value="">Все</option>
+                        <option value="F" {% if selected_gender=='F' %}selected{% endif %}>Женский</option>
+                        <option value="M" {% if selected_gender=='M' %}selected{% endif %}>Мужской</option>
+                        <option value="U" {% if selected_gender=='U' %}selected{% endif %}>Унисекс</option>
+                    </select>
+                </div>
+                {% endif %}
+                {% if client_id %}
+                <input type="hidden" name="client_id" value="{{ client_id }}">
                 {% endif %}
                 <div class="col-md-2">
                     <button type="submit" class="btn btn-primary w-100">Найти</button>
+                </div>
+                <div class="col-md-2">
+                    <a href="/price/search{% if client_id %}?client_id={{ client_id }}{% endif %}"
+                        class="btn btn-outline-secondary w-100">Сбросить</a>
                 </div>
             </form>
         </div>
@@ -32,15 +435,16 @@
                         Итого: {{ partner_pricing.total_markup_percent }}%
                     </div>
                 </div>
-                <div class="d-flex gap-2">
-                    <a class="btn btn-outline-secondary btn-sm" href="/partners/me">Профиль</a>
+                <div class="d-flex gap-2 align-items-end">
                     <form method="post" action="/partners/me/markup" class="d-flex gap-2 align-items-end">
                         <input type="hidden" name="next" value="/price/search">
                         <div>
                             <label class="form-label small mb-1">Наценка, %</label>
-                            <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="partner_default_markup_percent" value="{{ partner_pricing.partner_default_markup_percent }}">
+                            <input type="number" min="0" step="0.01" class="form-control form-control-sm"
+                                name="partner_default_markup_percent"
+                                value="{{ partner_pricing.partner_default_markup_percent }}">
                             {% if partner_pricing.max_partner_markup_percent is not none %}
-                                <div class="form-text">Макс: {{ partner_pricing.max_partner_markup_percent }}%</div>
+                            <div class="form-text small">Макс: {{ partner_pricing.max_partner_markup_percent }}%</div>
                             {% endif %}
                         </div>
                         <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
@@ -55,12 +459,31 @@
     <div class="alert alert-info" role="alert">
         Прайс для клиента: <strong>{{ client.name }}</strong>
         {% if partner_pricing and partner_pricing.total_markup_percent is not none %}
-            (наценка: {{ partner_pricing.total_markup_percent }}%)
+        (наценка: {{ partner_pricing.total_markup_percent }}%)
         {% endif %}
     </div>
     {% endif %}
 
-    <div class="card">
+    <!-- Блок с количеством найденных позиций -->
+    {% if total is defined and total is not none %}
+    <div class="card mb-3" id="results-count-card">
+        <div class="card-body py-2">
+            <div class="d-flex align-items-center">
+                <strong>Найдено позиций: <span id="results-total">{{ total }}</span></strong>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card mb-3" id="results-count-card" style="display: none;">
+        <div class="card-body py-2">
+            <div class="d-flex align-items-center">
+                <strong>Найдено позиций: <span id="results-total">0</span></strong>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card" id="products-table-container">
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table price-table-custom">
@@ -69,37 +492,45 @@
                             <th>Артикул</th>
                             <th>Наименование</th>
                             {% if partner_pricing %}
-                                <th>Цена по прайсу</th>
-                                <th>+ админ ({{ partner_pricing.admin_markup_percent }}%)</th>
-                                <th>Клиенту ({{ partner_pricing.total_markup_percent }}%)</th>
+                            <th>Цена партнёра</th>
+                            <th>+ админ ({{ partner_pricing.admin_markup_percent }}%)</th>
+                            <th>Клиенту ({{ partner_pricing.total_markup_percent }}%)</th>
+                            {% elif is_admin and selected_partner_id %}
+                            <th>Цена партнёра</th>
+                            <th>Закупка (price_1)</th>
+                            {% elif is_admin and can_view_cost %}
+                            <th>Цена партнёра (price_2)</th>
+                            <th>Закупка (price_1)</th>
                             {% elif can_view_client %}
-                                <th>Цена по прайсу</th>
-                            {% endif %}
-                            {% if can_view_cost and not partner_pricing %}
-                                <th>Цена партнёра (price_2)</th>
-                                <th>Закупка (price_1)</th>
+                            <th>Цена по прайсу</th>
                             {% endif %}
                             <th></th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="products-tbody">
                         {% for p in products %}
                         {% set lh = last_history.get(p.id) %}
                         <tr>
                             <td class="text-nowrap">{{ p.external_article }}</td>
                             <td>
-                                <a href="/price/product/{{ p.id }}" class="text-dark fw-normal text-decoration-none">{{ p.raw_name }}</a>
+                                <a href="/price/product/{{ p.id }}" class="text-dark fw-normal text-decoration-none">{{
+                                    p.raw_name }}</a>
                             </td>
 
                             {% if partner_pricing %}
-                                <td>{{ partner_pricing.base_price_map.get(p.id) }}</td>
-                                <td>{{ partner_pricing.admin_price_map.get(p.id) }}</td>
-                                <td>{{ partner_pricing.total_price_map.get(p.id) }}</td>
-                            {% elif can_view_client %}
-                                <td>{{ base_price_map.get(p.id) }}</td>
-                            {% endif %}
-
-                            {% if can_view_cost and not partner_pricing %}
+                            <td>{{ partner_pricing.base_price_map.get(p.id) }}</td>
+                            <td>{{ partner_pricing.admin_price_map.get(p.id) }}</td>
+                            <td>{{ partner_pricing.total_price_map.get(p.id) }}</td>
+                            {% elif is_admin and selected_partner_id and admin_selected_partner_pricing %}
+                            <td>
+                                {{ admin_selected_partner_pricing.get(p.id) or "-" }}
+                                {% if lh and lh.change_type == 'UP' %}<span class="text-success">↑</span>{% endif %}
+                                {% if lh and lh.change_type == 'DOWN' %}<span class="text-danger">↓</span>{% endif %}
+                            </td>
+                            <td>
+                                {{ price_1_map.get(p.id) or "-" }}
+                            </td>
+                            {% elif is_admin and can_view_cost %}
                             <td>
                                 {{ price_map.get(p.id) }}
                                 {% if lh and lh.change_type == 'UP' %}<span class="text-success">↑</span>{% endif %}
@@ -108,16 +539,27 @@
                             <td>
                                 {{ price_1_map.get(p.id) or "-" }}
                             </td>
+                            {% elif can_view_client %}
+                            <td>{{ base_price_map.get(p.id) }}</td>
                             {% endif %}
 
-                            <td class="text-end">
+                            <td class="text-end" style="white-space: nowrap;">
                                 {% if can_create_orders %}
-                                    <a href="/orders/new?price_product_id={{ p.id }}" class="btn btn-sm btn-outline-primary">В заказ</a>
+                                <button type="button" class="btn btn-sm btn-outline-primary add-to-order-btn" 
+                                    data-product-id="{{ p.id }}" style="white-space: nowrap;">В заказ</button>
+                                {% endif %}
+                                {% if p.norm_brand and p.model_name %}
+                                <button type="button" class="btn btn-sm btn-outline-success to-catalog-btn"
+                                    data-product-id="{{ p.id }}" title="Добавить в каталог" style="white-space: nowrap;">
+                                    <i class="fas fa-catalog me-1"></i>В каталог
+                                </button>
                                 {% endif %}
                             </td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="7" class="text-muted">Нет результатов</td></tr>
+                        <tr>
+                            <td colspan="7" class="text-muted">Нет результатов</td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -127,17 +569,402 @@
             <nav aria-label="Пагинация прайса">
                 <ul class="pagination mb-0">
                     {% set prev_page = page - 1 if page > 1 else 1 %}
-                    {% set next_page = page + 1 if page < pages_count else pages_count %}
-                    <li class="page-item {% if page == 1 %}disabled{% endif %}">
-                        <a class="page-link" href="?q={{ q }}&page={{ prev_page }}&page_size={{ page_size }}&upload_id={{ upload_id or '' }}{% if client_id %}&client_id={{ client_id }}{% endif %}">«</a>
-                    </li>
-                    <li class="page-item disabled"><span class="page-link">Стр. {{ page }} из {{ pages_count }}</span></li>
-                    <li class="page-item {% if page == pages_count %}disabled{% endif %}">
-                        <a class="page-link" href="?q={{ q }}&page={{ next_page }}&page_size={{ page_size }}&upload_id={{ upload_id or '' }}{% if client_id %}&client_id={{ client_id }}{% endif %}">»</a>
-                    </li>
+                    {% set next_page = page + 1 if page < pages_count else pages_count %} <li
+                        class="page-item {% if page == 1 %}disabled{% endif %}">
+                        <a class="page-link"
+                            href="?q={{ q }}&page={{ prev_page }}&page_size={{ page_size }}&upload_id={{ upload_id or '' }}{% if hide_decant %}&hide_decant=1{% endif %}{% if selected_partner_id %}&partner_id={{ selected_partner_id }}{% endif %}{% if selected_brand %}&brand={{ selected_brand }}{% endif %}{% if selected_gender %}&gender={{ selected_gender }}{% endif %}{% if section %}&section={{ section }}{% endif %}{% if pf %}&pf={{ pf }}{% endif %}{% if client_id %}&client_id={{ client_id }}{% endif %}">«</a>
+                        </li>
+                        <li class="page-item disabled"><span class="page-link">Стр. {{ page }} из {{ pages_count
+                                }}</span></li>
+                        <li class="page-item {% if page == pages_count %}disabled{% endif %}">
+                            <a class="page-link"
+                                href="?q={{ q }}&page={{ next_page }}&page_size={{ page_size }}&upload_id={{ upload_id or '' }}{% if hide_decant %}&hide_decant=1{% endif %}{% if selected_partner_id %}&partner_id={{ selected_partner_id }}{% endif %}{% if selected_brand %}&brand={{ selected_brand }}{% endif %}{% if selected_gender %}&gender={{ selected_gender }}{% endif %}{% if section %}&section={{ section }}{% endif %}{% if pf %}&pf={{ pf }}{% endif %}{% if ptype %}&ptype={{ ptype }}{% endif %}{% if psub %}&psub={{ psub }}{% endif %}{% if client_id %}&client_id={{ client_id }}{% endif %}">»</a>
+                        </li>
                 </ul>
             </nav>
             {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    // Динамическая загрузка брендов при вводе
+    document.addEventListener('DOMContentLoaded', function () {
+        // Обновление текста на переключателе при изменении
+        const toggleInput = document.getElementById('hide-decant-toggle');
+        const toggleText = document.querySelector('#hide-decant-toggle + .neumorphic-toggle-label .neumorphic-toggle-text');
+        if (toggleInput && toggleText) {
+            toggleInput.addEventListener('change', function() {
+                toggleText.textContent = this.checked ? 'ON' : 'OFF';
+            });
+        }
+        
+        const brandInput = document.getElementById('brand-input');
+        const brandsList = document.getElementById('brands-list');
+        let debounceTimer;
+
+        if (brandInput) {
+            brandInput.addEventListener('input', function () {
+                const searchTerm = this.value.trim();
+
+                // Очищаем предыдущий таймер
+                clearTimeout(debounceTimer);
+
+                // Если введено меньше 2 символов, не делаем запрос
+                if (searchTerm.length < 2) {
+                    return;
+                }
+
+                // Устанавливаем новый таймер для debounce
+                debounceTimer = setTimeout(function () {
+                    fetch(`/price/api/brands?q=${encodeURIComponent(searchTerm)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            // Очищаем список
+                            brandsList.innerHTML = '';
+
+                            // Добавляем новые опции
+                            data.brands.forEach(function (brand) {
+                                const option = document.createElement('option');
+                                option.value = brand;
+                                brandsList.appendChild(option);
+                            });
+                        })
+                        .catch(error => {
+                            console.error('Error loading brands:', error);
+                        });
+                }, 300); // Задержка 300мс
+            });
+        }
+
+        // Флаг для предотвращения множественных кликов
+        let isNavigating = false;
+
+        // Функция для загрузки результатов через AJAX
+        async function loadResults(updateUrl = true) {
+            if (isNavigating) return;
+            isNavigating = true;
+
+            // Показываем индикатор загрузки
+            const tbody = document.getElementById('products-tbody');
+            const countCard = document.getElementById('results-count-card');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="10" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Загрузка...</span></div></td></tr>';
+            }
+
+            // Собираем параметры из URL
+            const url = new URL(window.location);
+            const params = {
+                q: url.searchParams.get('q') || '',
+                page: url.searchParams.get('page') || '1',
+                page_size: url.searchParams.get('page_size') || '20',
+                section: url.searchParams.get('section') || 'parfum',
+                pf: url.searchParams.get('pf') || '',
+                partner_id: url.searchParams.get('partner_id') || '',
+                hide_decant: url.searchParams.get('hide_decant') || '',
+                brand: url.searchParams.get('brand') || '',
+                gender: url.searchParams.get('gender') || '',
+                ptype: url.searchParams.get('ptype') || '',
+                psub: url.searchParams.get('psub') || '',
+                client_id: url.searchParams.get('client_id') || '',
+            };
+
+            // Формируем URL для API
+            const apiUrl = new URL('/price/api/search', window.location.origin);
+            Object.keys(params).forEach(key => {
+                if (params[key]) {
+                    apiUrl.searchParams.set(key, params[key]);
+                }
+            });
+
+            try {
+                const response = await fetch(apiUrl.toString());
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.json();
+
+                // Обновляем количество найденных позиций
+                if (countCard) {
+                    countCard.style.display = 'block';
+                    const totalSpan = document.getElementById('results-total');
+                    if (totalSpan) {
+                        totalSpan.textContent = data.total || 0;
+                    }
+                }
+
+                // Обновляем таблицу с результатами
+                if (tbody && data.products) {
+                    updateProductsTable(tbody, data.products, data);
+                }
+
+                // Обновляем URL без перезагрузки страницы
+                if (updateUrl) {
+                    window.history.pushState({}, '', url.toString());
+                }
+
+            } catch (error) {
+                console.error('Ошибка загрузки результатов:', error);
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-danger py-4">Ошибка загрузки данных</td></tr>';
+                }
+            } finally {
+                isNavigating = false;
+            }
+        }
+
+        // Функция для обновления таблицы с продуктами
+        function updateProductsTable(tbody, products, data) {
+            if (!products || products.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" class="text-muted text-center py-4">Нет результатов</td></tr>';
+                return;
+            }
+
+            const hasPartnerPricing = data.partner_pricing;
+            const canViewClient = data.can_view_client;
+            const canViewCost = data.can_view_cost;
+            const isAdmin = data.is_admin || false;
+            const viewPartnerId = data.view_partner_id || null;
+            const adminSelectedPartnerPricing = data.admin_selected_partner_pricing || {};
+            const canCreateOrders = {% if can_create_orders %} true{% else %} false{% endif %};
+
+        tbody.innerHTML = products.map(p => {
+            const changeIcon = p.change_type === 'UP' ? '<span class="text-success">↑</span>' :
+                p.change_type === 'DOWN' ? '<span class="text-danger">↓</span>' : '';
+
+            let priceCells = '';
+            if (hasPartnerPricing) {
+                priceCells = `
+                    <td>${p.base_price ? p.base_price.toFixed(2) : '-'}</td>
+                    <td>${p.admin_price ? p.admin_price.toFixed(2) : '-'}</td>
+                    <td>${p.total_price ? p.total_price.toFixed(2) : '-'}</td>
+                `;
+            } else if (isAdmin && viewPartnerId && adminSelectedPartnerPricing[p.id] !== undefined) {
+                priceCells = `
+                    <td>${adminSelectedPartnerPricing[p.id] ? adminSelectedPartnerPricing[p.id].toFixed(2) : '-'} ${changeIcon}</td>
+                    <td>${p.price_1 ? p.price_1.toFixed(2) : '-'}</td>
+                `;
+            } else if (isAdmin && canViewCost) {
+                priceCells = `
+                    <td>${p.price ? p.price.toFixed(2) : '-'} ${changeIcon}</td>
+                    <td>${p.price_1 ? p.price_1.toFixed(2) : '-'}</td>
+                `;
+            } else if (canViewClient) {
+                priceCells = `<td>${p.base_price ? p.base_price.toFixed(2) : '-'}</td>`;
+            }
+
+            const catalogBtn = (p.norm_brand && p.model_name) ?
+                `<button type="button" class="btn btn-sm btn-outline-success to-catalog-btn" data-product-id="${p.id}" title="Добавить в каталог">
+                    <i class="fas fa-catalog me-1"></i>В каталог
+                </button>` : '';
+
+            const orderBtn = canCreateOrders ?
+                `<button type="button" class="btn btn-sm btn-outline-primary add-to-order-btn" data-product-id="${p.id}">В заказ</button>` : '';
+
+            return `
+                <tr>
+                    <td class="text-nowrap">${p.external_article || ''}</td>
+                    <td><a href="/price/product/${p.id}" class="text-dark fw-normal text-decoration-none">${p.raw_name || ''}</a></td>
+                    ${priceCells}
+                    <td class="text-end">${orderBtn} ${catalogBtn}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    // Обработчики для чипсов-ссылок (перехватываем клики для AJAX-загрузки)
+    // Используем более специфичный селектор, чтобы не перехватывать другие элементы
+    document.querySelectorAll('.filters-bar .chip').forEach(chip => {
+        chip.addEventListener('click', function (e) {
+            // Критично: предотвращаем навигацию и всплытие события
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+
+            // Защита от множественных кликов
+            if (isNavigating) {
+                return false;
+            }
+
+            const href = this.getAttribute('href');
+            if (!href) {
+                return false;
+            }
+
+            // Обновляем URL без перезагрузки страницы
+            window.history.pushState({}, '', href);
+
+            // Загружаем результаты через AJAX
+            loadResults(false); // URL уже обновлен
+
+            return false;
+        }, true); // Используем capture phase для раннего перехвата
+    });
+
+    // Модальное окно для выбора заказа
+    let currentProductId = null;
+    const orderModal = new bootstrap.Modal(document.getElementById('addToOrderModal'));
+    const orderChoiceRadios = document.querySelectorAll('input[name="order_choice"]');
+    const existingOrdersList = document.getElementById('existingOrdersList');
+    const newOrderBtn = document.getElementById('newOrderBtn');
+    const addToExistingOrderBtn = document.getElementById('addToExistingOrderBtn');
+
+    // Обработчик клика на кнопку "В заказ"
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('add-to-order-btn')) {
+            e.preventDefault();
+            currentProductId = e.target.getAttribute('data-product-id');
+            if (!currentProductId) return;
+            
+            // Сбрасываем выбор
+            document.getElementById('choice_new').checked = true;
+            updateOrderChoice();
+            
+            // Загружаем список заказов
+            loadOrdersList();
+            
+            // Открываем модальное окно
+            orderModal.show();
+        }
+    });
+
+    // Обновление интерфейса в зависимости от выбора
+    function updateOrderChoice() {
+        const choice = document.querySelector('input[name="order_choice"]:checked')?.value;
+        if (choice === 'existing') {
+            existingOrdersList.style.display = 'block';
+            addToExistingOrderBtn.style.display = 'block';
+            addToExistingOrderBtn.disabled = true; // Будет включена при выборе заказа
+            newOrderBtn.style.display = 'none';
+        } else {
+            existingOrdersList.style.display = 'none';
+            addToExistingOrderBtn.style.display = 'none';
+            newOrderBtn.style.display = 'block';
+        }
+    }
+
+    // Загрузка списка заказов
+    async function loadOrdersList() {
+        existingOrdersList.innerHTML = '<div class="text-center text-muted py-3">Загрузка...</div>';
+        try {
+            const response = await fetch('/orders/api/list?limit=20');
+            if (!response.ok) throw new Error('Ошибка загрузки заказов');
+            const orders = await response.json();
+            
+            if (orders.length === 0) {
+                existingOrdersList.innerHTML = '<div class="text-center text-muted py-3">Нет доступных заказов</div>';
+                document.getElementById('choice_existing').disabled = true;
+                document.getElementById('choice_new').checked = true;
+                updateOrderChoice();
+                return;
+            }
+            
+            document.getElementById('choice_existing').disabled = false;
+            existingOrdersList.innerHTML = orders.map(order => `
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="selected_order_id" 
+                        value="${order.id}" id="order_${order.id}" onchange="if (document.getElementById('addToExistingOrderBtn')) { document.getElementById('addToExistingOrderBtn').disabled = false; }">
+                    <label class="form-check-label" for="order_${order.id}">
+                        <strong>#${order.id}</strong> - ${order.client_name || 'Без клиента'} 
+                        ${order.client_phone ? `(${order.client_phone})` : ''}
+                        <span class="badge bg-secondary ms-2">${order.status_label}</span>
+                        <small class="text-muted ms-2">${order.items_count} позиций, ${order.total_amount.toFixed(2)} ₽</small>
+                    </label>
+                </div>
+            `).join('');
+            
+            // Добавляем обработчик для всех радио-кнопок заказов
+            document.querySelectorAll('input[name="selected_order_id"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    if (addToExistingOrderBtn) {
+                        addToExistingOrderBtn.disabled = false;
+                    }
+                });
+            });
+        } catch (error) {
+            console.error('Ошибка загрузки заказов:', error);
+            existingOrdersList.innerHTML = '<div class="text-center text-danger py-3">Ошибка загрузки заказов</div>';
+        }
+    }
+
+    // Обработчики изменения выбора
+    orderChoiceRadios.forEach(radio => {
+        radio.addEventListener('change', updateOrderChoice);
+    });
+
+    // Кнопка "Создать новый заказ"
+    newOrderBtn.addEventListener('click', function() {
+        if (currentProductId) {
+            window.location.href = `/orders/new?price_product_id=${currentProductId}`;
+        }
+    });
+
+    // Кнопка "Добавить в выбранный заказ"
+    addToExistingOrderBtn.addEventListener('click', function() {
+        const selectedOrderId = document.querySelector('input[name="selected_order_id"]:checked')?.value;
+        if (!selectedOrderId || !currentProductId) return;
+        
+        // Создаём форму для отправки
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/orders/${selectedOrderId}/add_item`;
+        
+        const productInput = document.createElement('input');
+        productInput.type = 'hidden';
+        productInput.name = 'price_product_id';
+        productInput.value = currentProductId;
+        form.appendChild(productInput);
+        
+        const quantityInput = document.createElement('input');
+        quantityInput.type = 'hidden';
+        quantityInput.name = 'quantity';
+        quantityInput.value = '1';
+        form.appendChild(quantityInput);
+        
+        const discountInput = document.createElement('input');
+        discountInput.type = 'hidden';
+        discountInput.name = 'discount';
+        discountInput.value = '0';
+        form.appendChild(discountInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    });
+});
+</script>
+
+<!-- Модальное окно для выбора заказа -->
+<div class="modal fade" id="addToOrderModal" tabindex="-1" aria-labelledby="addToOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addToOrderModalLabel">Добавить товар в заказ</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="order_choice" id="choice_new" value="new" checked>
+                        <label class="form-check-label" for="choice_new">
+                            <strong>Создать новый заказ</strong>
+                        </label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="order_choice" id="choice_existing" value="existing">
+                        <label class="form-check-label" for="choice_existing">
+                            <strong>Добавить в существующий заказ</strong>
+                        </label>
+                    </div>
+                </div>
+                <div id="existingOrdersList" style="display: none; max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px;">
+                    <!-- Список заказов будет загружен здесь -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" id="newOrderBtn">Создать новый заказ</button>
+                <button type="button" class="btn btn-primary" id="addToExistingOrderBtn" style="display: none;" disabled>Добавить в заказ</button>
+            </div>
         </div>
     </div>
 </div>

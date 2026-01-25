@@ -72,7 +72,28 @@ class FragellaClient:
                     db.add(log_entry)
                     db.commit()
                 
-                return response.json()
+                json_data = response.json()
+                # Проверяем, что это список или словарь с результатами
+                if isinstance(json_data, dict) and 'results' in json_data:
+                    return json_data['results']
+                elif isinstance(json_data, dict) and 'data' in json_data:
+                    return json_data['data']
+                elif isinstance(json_data, list):
+                    return json_data
+                else:
+                    # Если это словарь, но не список результатов, возвращаем как есть
+                    return json_data
+        except httpx.HTTPStatusError as e:
+            # Логируем ошибку HTTP
+            if db:
+                log_entry = FragellaUsageLog(
+                    endpoint=endpoint,
+                    success=False,
+                    error_message=f"HTTP {e.response.status_code}: {e.response.text[:500]}"
+                )
+                db.add(log_entry)
+                db.commit()
+            raise
         except httpx.RequestError as e:
             # Логируем ошибку запроса
             if db:
@@ -84,7 +105,7 @@ class FragellaClient:
                 db.add(log_entry)
                 db.commit()
             
-            raise e
+            raise
 
     async def search_fragrances(self, query: str, limit: int = 5, db: Session = None) -> List[Dict]:
         """

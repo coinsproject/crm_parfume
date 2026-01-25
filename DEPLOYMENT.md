@@ -467,3 +467,12 @@ docker-compose exec crm sqlite3 /app/data/crm.db ".tables"
 docker-compose exec crm sqlite3 /app/data/crm.db ".dump" > backup.sql
 ```
 
+
+
+
+
+
+
+
+
+

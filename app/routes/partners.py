@@ -89,6 +89,7 @@ async def create_partner(
     telegram_nick: str = Form(""),
     notes: str = Form(""),
     comment: str = Form(""),
+    partner_price_markup_percent: str = Form(""),
     admin_markup_percent: str = Form(""),
     max_partner_markup_percent: str = Form(""),
     partner_default_markup_percent: str = Form(""),
@@ -119,9 +120,12 @@ async def create_partner(
             partners_logger.error("[PARTNER_CREATE] invalid %s=%s err=%s", field, raw, exc)
             return None
 
+    partner_price_markup = _parse_pct(partner_price_markup_percent, "partner_price_markup_percent") or Decimal("0.00")
     admin_markup = _parse_pct(admin_markup_percent, "admin_markup_percent") or Decimal("0.00")
     max_partner_markup = _parse_pct(max_partner_markup_percent, "max_partner_markup_percent")
     partner_default_markup = _parse_pct(partner_default_markup_percent, "partner_default_markup_percent") or Decimal("0.00")
+    if partner_price_markup < 0:
+        errors["partner_price_markup_percent"] = "Должно быть от 0"
     if admin_markup < 0:
         errors["admin_markup_percent"] = "Должно быть от 0"
     if max_partner_markup is not None and max_partner_markup < 0:
@@ -150,6 +154,7 @@ async def create_partner(
                 "telegram": telegram,
                 "telegram_nick": telegram_nick,
                 "comment": comment,
+                "partner_price_markup_percent": partner_price_markup_percent,
                 "admin_markup_percent": admin_markup_percent,
                 "max_partner_markup_percent": max_partner_markup_percent,
                 "partner_default_markup_percent": partner_default_markup_percent,
@@ -189,6 +194,7 @@ async def create_partner(
         is_active=bool(is_active),
         can_access_catalog=bool(can_access_catalog),
         can_edit_prices=bool(can_edit_prices),
+        partner_price_markup_percent=partner_price_markup,
         admin_markup_percent=admin_markup,
         max_partner_markup_percent=max_partner_markup,
         partner_default_markup_percent=partner_default_markup,
@@ -281,6 +287,7 @@ async def update_partner(
     telegram_nick: str = Form(""),
     notes: str = Form(""),
     comment: str = Form(""),
+    partner_price_markup_percent: str = Form(""),
     admin_markup_percent: str = Form(""),
     max_partner_markup_percent: str = Form(""),
     partner_default_markup_percent: str = Form(""),
@@ -312,15 +319,20 @@ async def update_partner(
             partners_logger.error("[PARTNER_UPDATE] invalid %s=%s err=%s", field, raw, exc)
             return None
 
+    partner_price_markup = _parse_pct(partner_price_markup_percent, "partner_price_markup_percent")
     admin_markup = _parse_pct(admin_markup_percent, "admin_markup_percent")
     max_partner_markup = _parse_pct(max_partner_markup_percent, "max_partner_markup_percent")
     partner_default_markup = _parse_pct(partner_default_markup_percent, "partner_default_markup_percent")
 
+    if partner_price_markup is None:
+        partner_price_markup = getattr(partner, 'partner_price_markup_percent', None) or Decimal("0.00")
     if admin_markup is None:
         admin_markup = partner.admin_markup_percent or Decimal("0.00")
     if partner_default_markup is None:
         partner_default_markup = partner.partner_default_markup_percent or Decimal("0.00")
 
+    if partner_price_markup < 0:
+        errors["partner_price_markup_percent"] = "Должно быть от 0"
     if admin_markup < 0:
         errors["admin_markup_percent"] = "Должно быть от 0"
     if max_partner_markup is not None and max_partner_markup < 0:
@@ -344,6 +356,7 @@ async def update_partner(
                     "telegram": telegram,
                     "telegram_nick": telegram_nick,
                     "comment": comment,
+                    "partner_price_markup_percent": partner_price_markup_percent,
                     "admin_markup_percent": admin_markup_percent,
                     "max_partner_markup_percent": max_partner_markup_percent,
                     "partner_default_markup_percent": partner_default_markup_percent,
@@ -371,6 +384,7 @@ async def update_partner(
     partner.is_active = bool(is_active)
     partner.can_access_catalog = bool(can_access_catalog)
     partner.can_edit_prices = bool(can_edit_prices)
+    partner.partner_price_markup_percent = partner_price_markup
     partner.admin_markup_percent = admin_markup
     partner.max_partner_markup_percent = max_partner_markup
     partner.partner_default_markup_percent = partner_default_markup
@@ -433,6 +447,19 @@ async def get_my_partner_settings(
             "active_menu": "partners",
         },
     )
+
+
+@router.get("/me/orders/new", response_class=RedirectResponse)
+async def partner_new_order(
+    current_user: User = Depends(require_roles(["PARTNER"])),
+    db: Session = Depends(get_db),
+):
+    """Перенаправление партнёра на форму создания заказа"""
+    partner = resolve_current_partner(db, current_user)
+    if not partner:
+        raise HTTPException(status_code=404, detail="Партнёр не найден")
+    # Перенаправляем на стандартную форму заказа, которая автоматически определит партнёра
+    return RedirectResponse(url="/orders/new", status_code=303)
 
 
 @router.post("/me/profile", response_class=RedirectResponse)

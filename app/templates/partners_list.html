@@ -37,7 +37,8 @@
                                             <th>ФИО</th>
                                             <th>Телефон</th>
                                             <th>Email</th>
-                                            <th>Наценка админа</th>
+                                            <th>Надбавка на прайс</th>
+                                            <th>Наценка админа (клиент)</th>
                                             <th>Наценка партнёра</th>
                                             <th>Статус</th>
                                             <th>Создан</th>
@@ -50,6 +51,7 @@
                                             <td>{{ p.full_name or p.name }}</td>
                                             <td>{{ p.phone or '-' }}</td>
                                             <td>{{ p.user.email if p.user else '-' }}</td>
+                                            <td>{{ p.partner_price_markup_percent if p.partner_price_markup_percent is not none else 0 }}%</td>
                                             <td>{{ p.admin_markup_percent if p.admin_markup_percent is not none else 0 }}%</td>
                                             <td>{{ p.partner_default_markup_percent if p.partner_default_markup_percent is not none else 0 }}%</td>
                                             <td>
@@ -58,7 +60,6 @@
                                                 {% else %}
                                                 <span class="badge bg-secondary">Выключен</span>
                                                 {% endif %}
-                                                {% if p.status %}<div class="small text-muted">{{ p.status }}</div>{% endif %}
                                             </td>
                                             <td>{{ p.created_at.strftime("%d.%m.%Y") if p.created_at else "-" }}</td>
                                             <td>
@@ -72,7 +73,7 @@
                                         </tr>
                                         {% endfor %}
                                         {% if partners|length == 0 %}
-                                        <tr><td colspan="7" class="text-muted text-center">Партнёры не найдены</td></tr>
+                                        <tr><td colspan="9" class="text-muted text-center">Партнёры не найдены</td></tr>
                                         {% endif %}
                                     </tbody>
                                 </table>

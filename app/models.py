@@ -1,9 +1,9 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, Numeric, DateTime, ForeignKey, func, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Text, Boolean, Numeric, DateTime, ForeignKey, func, UniqueConstraint, Table, Date
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import relationship
+import sqlalchemy as sa
 from app.db import Base
-from datetime import datetime
-from sqlalchemy import Date
+from datetime import datetime, date
 
 
 class Role(Base):
@@ -102,6 +102,7 @@ class Partner(Base):
     can_access_catalog = Column(Boolean, default=False)
     can_edit_prices = Column(Boolean, default=False)
     admin_markup_percent = Column(Numeric(5, 2), nullable=True)
+    partner_price_markup_percent = Column(Numeric(5, 2), nullable=True)
     max_partner_markup_percent = Column(Numeric(5, 2), nullable=True)
     partner_default_markup_percent = Column(Numeric(5, 2), nullable=True)
     status = Column(String, nullable=False, default="active")  # active / paused / blocked
@@ -190,13 +191,17 @@ class Order(Base):
     created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     partner_id = Column(Integer, ForeignKey("partners.id"), nullable=True)
     
-    # Статусы: "NEW", "WAITING_PAYMENT", "PAID", "PACKING", "SHIPPED", "DELIVERED", "CANCELLED", "RETURNED"
+    # Статусы: "NEW", "PENDING_CLIENT_APPROVAL", "WAITING_PAYMENT", "PAID", "PACKING", "SHIPPED", "DELIVERED", "CANCELLED", "RETURNED"
     status = Column(String, nullable=False, default="NEW")
     total_amount = Column(Numeric(10, 2), nullable=False)
     total_client_amount = Column(Numeric(10, 2), nullable=True)
     total_cost_for_owner = Column(Numeric(10, 2), nullable=True)
     total_margin_for_owner = Column(Numeric(10, 2), nullable=True)
     total_margin_percent = Column(Numeric(5, 2), nullable=True)
+    total_admin_margin = Column(Numeric(10, 2), nullable=True)  # Общая маржа админа
+    total_partner_margin = Column(Numeric(10, 2), nullable=True)  # Общая маржа партнера
+    total_admin_margin_percent = Column(Numeric(5, 2), nullable=True)  # Процент маржи админа (от себестоимости price_1)
+    total_partner_margin_percent = Column(Numeric(5, 2), nullable=True)  # Процент маржи партнера (от себестоимости price_2)
     currency = Column(String, default="RUB")
     payment_method = Column(String, nullable=True)  # SBP, карта, нал и т.д.
     
@@ -219,6 +224,7 @@ class Order(Base):
     partner = relationship("Partner", back_populates="orders")
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     delivery = relationship("Delivery", uselist=False, back_populates="order")
+    purchase_requests = relationship("PurchaseRequest", secondary="purchase_request_orders", back_populates="orders")
 
 class OrderItem(Base):
     __tablename__ = "order_items"
@@ -238,6 +244,10 @@ class OrderItem(Base):
     line_cost_amount = Column(Numeric(10, 2), nullable=True)
     line_margin = Column(Numeric(10, 2), nullable=True)
     line_margin_percent = Column(Numeric(5, 2), nullable=True)
+    line_admin_margin = Column(Numeric(10, 2), nullable=True)  # Маржа админа по строке
+    line_partner_margin = Column(Numeric(10, 2), nullable=True)  # Маржа партнера по строке
+    line_admin_margin_percent = Column(Numeric(5, 2), nullable=True)  # Процент маржи админа по строке (от price_1)
+    line_partner_margin_percent = Column(Numeric(5, 2), nullable=True)  # Процент маржи партнера по строке (от price_2)
     discount = Column(Numeric(10, 2), nullable=True)
 
     # Связи
@@ -374,8 +384,8 @@ class PriceProduct(Base):
     id = Column(Integer, primary_key=True, index=True)
     external_article = Column(String, unique=True, nullable=False)
     raw_name = Column(Text, nullable=True)
-    brand = Column(String, nullable=True)
-    product_name = Column(String, nullable=True)
+    brand = Column(String, nullable=True)  # legacy, используем norm_brand
+    product_name = Column(String, nullable=True)  # legacy
     category = Column(String, nullable=True)
     volume_value = Column(Numeric(10, 2), nullable=True)
     volume_unit = Column(String, nullable=True)
@@ -387,12 +397,30 @@ class PriceProduct(Base):
     is_in_stock = Column(Boolean, default=True)  # есть ли товар в наличии
     is_in_current_pricelist = Column(Boolean, default=True)  # участвует ли в последней загрузке
     last_price_change_at = Column(DateTime, nullable=True)
+    
+    # Поля нормализации (новые)
+    norm_brand = Column(String, nullable=True, index=True)  # нормализованный бренд
+    brand_confidence = Column(Numeric(3, 2), nullable=True)  # уверенность в бренде 0..1
+    model_name = Column(String, nullable=True)  # название модели/товара
+    series = Column(String, nullable=True)  # серия/линейка
+    category_path_json = Column(Text, nullable=True)  # JSON: список категорий из пути "A > B > C"
+    attrs_json = Column(Text, nullable=True)  # JSON: атрибуты варианта (format, volume, color, size, pack, features)
+    variant_key = Column(String, nullable=True, index=True)  # ключ варианта
+    search_text = Column(Text, nullable=True)  # текст для поиска
+    normalization_notes = Column(Text, nullable=True)  # заметки о нормализации
+    
+    # Legacy AI поля (сохраняем для совместимости)
     ai_brand = Column(String, nullable=True)  # бренд по версии ИИ
     ai_base_name = Column(String, nullable=True)  # нормализованное имя модели без объёма
     ai_line = Column(String, nullable=True)  # линейка/серия
     ai_kind = Column(String, nullable=True)  # тип продукта
     ai_group_key = Column(String, nullable=True, index=True)  # ключ объединения в одну карточку
-    ai_status = Column(String, nullable=False, default="pending")  # pending|ok|failed
+    ai_status = Column(String, nullable=False, default="pending")  # pending|ok|review|error
+    
+    # Поля для фильтрации по типу товара
+    product_type = Column(String(32), nullable=True, index=True)  # perfume, sets, atomizers, cosmetics, home, accessories, auto, analog, hit
+    product_subtype = Column(String(32), nullable=True, index=True)  # для cosmetics: decor, face, body, hands_feet, hair
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -433,10 +461,13 @@ class PriceUpload(Base):
     filename = Column(String, nullable=True)
     source_date = Column(Date, nullable=True)
     uploaded_at = Column(DateTime, default=datetime.utcnow)
-    status = Column(String, nullable=False, default="in_progress")  # in_progress, done, failed
+    status = Column(String, nullable=False, default="in_progress")  # in_progress, done, failed, cancelled
     created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     total_count = Column(Integer, default=0)  # legacy
     total_rows = Column(Integer, default=0)
+    processed_rows = Column(Integer, default=0)  # Количество обработанных строк
+    progress_percent = Column(Numeric(5, 2), default=0.0)  # Процент выполнения (0-100)
+    cancelled = Column(Boolean, default=False)  # Флаг отмены загрузки
     new_count = Column(Integer, default=0)  # legacy
     added_count = Column(Integer, default=0)
     up_count = Column(Integer, default=0)  # legacy: повышения
@@ -448,6 +479,30 @@ class PriceUpload(Base):
 
     items = relationship("PriceHistory", back_populates="price_upload")
     created_by = relationship("User")
+
+
+class Brand(Base):
+    __tablename__ = "brands"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name_canonical = Column(String, unique=True, nullable=False, index=True)
+    key = Column(String, unique=True, nullable=True, index=True)  # Нормализованный ключ для поиска
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    aliases = relationship("BrandAlias", back_populates="brand", cascade="all, delete-orphan")
+
+
+class BrandAlias(Base):
+    __tablename__ = "brand_aliases"
+
+    id = Column(Integer, primary_key=True, index=True)
+    brand_id = Column(Integer, ForeignKey("brands.id", ondelete="CASCADE"), nullable=False)
+    alias_upper = Column(String, unique=True, nullable=False, index=True)
+    alias_key = Column(String, unique=True, nullable=True, index=True)  # Нормализованный ключ для поиска
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    brand = relationship("Brand", back_populates="aliases")
 
 
 class CatalogItem(Base):
@@ -468,6 +523,15 @@ class CatalogItem(Base):
     tags = Column(JSON, nullable=True)
     visible = Column(Boolean, default=False, nullable=False)
     in_stock = Column(Boolean, default=False, nullable=False)
+    group_key = Column(String, unique=True, nullable=True, index=True)  # ключ карточки (brand|model_name|series)
+    
+    # Поля для API-обогащения
+    external_source = Column(String, nullable=True)  # fragella, etc
+    external_key = Column(String, nullable=True, index=True)  # ID во внешней системе
+    enrich_status = Column(String, nullable=True, default="pending")  # pending, enriched, needs_review, error
+    enrich_confidence = Column(Numeric(3, 2), nullable=True)  # 0..1
+    enriched_json = Column(Text, nullable=True)  # JSON с данными обогащения
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -486,11 +550,25 @@ class CatalogVariant(Base):
     id = Column(Integer, primary_key=True, index=True)
     catalog_item_id = Column(Integer, ForeignKey("catalog_items.id"), nullable=False)
     price_product_id = Column(Integer, ForeignKey("price_products.id"), nullable=False)
+    variant_key = Column(String, unique=True, nullable=True, index=True)  # ключ варианта
+    
+    # Legacy поля
     volume_value = Column(Numeric(10, 2), nullable=True)
     volume_unit = Column(String, nullable=True)
     is_tester = Column(Boolean, default=False, nullable=False)
     gender = Column(String, nullable=True)
     kind = Column(String, nullable=True)
+    
+    # Новые поля для нормализации
+    format = Column(String, nullable=True)  # full/tester/decant/sample/mini
+    color = Column(String, nullable=True)
+    size_cm = Column(Text, nullable=True)  # JSON: {w:int, h:int}
+    pack = Column(Text, nullable=True)  # JSON: {qty:int, unit:string}
+    density_raw = Column(String, nullable=True)  # например "40 гр"
+    features = Column(Text, nullable=True)  # JSON: list<string>
+    volumes_ml = Column(Text, nullable=True)  # JSON: list<int> для наборов
+    total_ml = Column(Integer, nullable=True)  # общий объём для наборов
+    
     in_stock = Column(Boolean, default=False, nullable=False)
     request_payload = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -502,3 +580,140 @@ class CatalogVariant(Base):
     __table_args__ = (
         UniqueConstraint("price_product_id", name="uq_catalog_variant_price_product"),
     )
+
+
+class PurchaseRequest(Base):
+    """Запрос на закупку от партнёра"""
+    __tablename__ = "purchase_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    partner_id = Column(Integer, ForeignKey("partners.id"), nullable=False)
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    
+    # Статусы: "NEW" (новый), "draft" (черновик), "submitted" (отправлен), "PENDING_APPROVAL" (отправлен на подтверждение),
+    # "partially_received" (частично получен), "fully_received" (получен полностью), "cancelled" (отменён)
+    status = Column(String, nullable=False, default="NEW")
+    
+    # Даты получения
+    expected_delivery_date = Column(Date, nullable=True)  # Ожидаемая дата получения
+    actual_delivery_date = Column(Date, nullable=True)  # Фактическая дата получения
+    
+    # Заметки
+    notes = Column(Text, nullable=True)
+    admin_notes = Column(Text, nullable=True)  # Заметки админа
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    submitted_at = Column(DateTime, nullable=True)  # Когда отправлен на закупку
+    
+    # Связи
+    partner = relationship("Partner", backref="purchase_requests")
+    created_by_user = relationship("User", foreign_keys=[created_by_user_id])
+    orders = relationship("Order", secondary="purchase_request_orders", back_populates="purchase_requests")
+
+
+# Промежуточная таблица для связи заказов с запросами на закупку (many-to-many)
+purchase_request_orders = sa.Table(
+    "purchase_request_orders",
+    Base.metadata,
+    Column("purchase_request_id", Integer, ForeignKey("purchase_requests.id"), primary_key=True),
+    Column("order_id", Integer, ForeignKey("orders.id"), primary_key=True),
+    Column("added_at", DateTime, default=datetime.utcnow),
+)
+
+
+class PurchaseRequestItem(Base):
+    """Позиция в запросе на закупку с возможностью изменения цены"""
+    __tablename__ = "purchase_request_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    purchase_request_id = Column(Integer, ForeignKey("purchase_requests.id"), nullable=False)
+    order_item_id = Column(Integer, ForeignKey("order_items.id"), nullable=False)
+    
+    # Статусы: "normal" (обычный), "new" (новый товар), "price_changed" (цена изменена), 
+    # "pending_approval" (ожидает подтверждения), "confirmation" (подтверждение), "approved" (подтверждён), "rejected" (отклонён)
+    status = Column(String, nullable=False, default="normal")
+    
+    # Цены
+    original_price = Column(Numeric(10, 2), nullable=True)  # Исходная цена из заказа
+    proposed_price = Column(Numeric(10, 2), nullable=True)  # Предложенная цена от поставщика
+    approved_price = Column(Numeric(10, 2), nullable=True)  # Подтверждённая цена
+    
+    # Комментарии
+    price_change_comment = Column(Text, nullable=True)  # Комментарий к изменению цены
+    admin_comment = Column(Text, nullable=True)  # Комментарий админа
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Связи
+    purchase_request = relationship("PurchaseRequest", backref="request_items")
+    order_item = relationship("OrderItem")
+
+
+class Notification(Base):
+    """Уведомления для пользователей"""
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    
+    # Типы: "purchase_request_new_item" (новый товар в запросе), "purchase_request_price_change" (изменение цены),
+    # "purchase_request_approval" (требуется подтверждение), "system_update" (обновление системы),
+    # "order_created" (создан новый заказ), "order_items_added" (добавлены товары в заказ)
+    type = Column(String, nullable=False)
+    
+    title = Column(String, nullable=False)
+    message = Column(Text, nullable=True)
+    
+    # Ссылка на связанный объект
+    related_type = Column(String, nullable=True)  # "purchase_request", "order", etc.
+    related_id = Column(Integer, nullable=True)
+    
+    # Статус
+    is_read = Column(Boolean, default=False, nullable=False)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    read_at = Column(DateTime, nullable=True)
+    
+    # Связи
+    user = relationship("User", backref="notifications")
+
+
+class ReleaseNote(Base):
+    """Релиз-ноутсы (описание изменений в версиях)"""
+    __tablename__ = "release_notes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # Версия
+    version = Column(String, nullable=False, unique=True)  # Например: "1.0.0"
+    
+    # Заголовок и описание
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)  # Полное описание изменений
+    
+    # Тип релиза: "major" (крупное обновление), "minor" (новые функции), "patch" (исправления)
+    release_type = Column(String, nullable=False, default="minor")
+    
+    # Дата релиза
+    release_date = Column(Date, nullable=False, default=datetime.utcnow)
+    
+    # Список изменений (JSON или Text)
+    changes = Column(Text, nullable=True)  # Можно хранить JSON с категориями: добавлено, изменено, исправлено
+    
+    # Флаги
+    is_published = Column(Boolean, default=True, nullable=False)  # Опубликован ли релиз
+    is_important = Column(Boolean, default=False, nullable=False)  # Важное обновление (показывать уведомление)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Связи
+    # Можно добавить связь с пользователем, который создал релиз-ноутс
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_by_user = relationship("User", foreign_keys=[created_by_user_id])

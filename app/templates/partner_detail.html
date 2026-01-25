@@ -28,7 +28,8 @@
                 {% if partner.can_access_catalog %}<span class="badge bg-success">Да</span>{% else %}<span class="badge bg-secondary">Нет</span>{% endif %}
             </p>
             <p><strong>Статус:</strong> {{ partner.status or '-' }}</p>
-            <p><strong>Наценка админа:</strong> {{ partner.admin_markup_percent if partner.admin_markup_percent is not none else 0 }}%</p>
+            <p><strong>Надбавка на прайс:</strong> {{ partner.partner_price_markup_percent if partner.partner_price_markup_percent is not none else 0 }}%</p>
+            <p><strong>Наценка админа (клиент):</strong> {{ partner.admin_markup_percent if partner.admin_markup_percent is not none else 0 }}%</p>
             <p><strong>Макс. наценка партнёра:</strong> {{ partner.max_partner_markup_percent if partner.max_partner_markup_percent is not none else '-' }}{% if partner.max_partner_markup_percent is not none %}%{% endif %}</p>
             <p><strong>Наценка партнёра по умолчанию:</strong> {{ partner.partner_default_markup_percent if partner.partner_default_markup_percent is not none else 0 }}%</p>
             <p><strong>Может редактировать цены:</strong>

@@ -13,6 +13,9 @@
                 </div>
                 <div class="card-body">
                     <form method="post" action="/clients">
+                        {% if return_to %}
+                        <input type="hidden" name="return_to" value="{{ return_to }}">
+                        {% endif %}
                         <div class="mb-3">
                             <label class="form-label" for="full_name">ФИО клиента *</label>
                             <input type="text" class="form-control {% if errors.full_name %}is-invalid{% endif %}" id="full_name" name="full_name" placeholder="Петров Пётр Петрович" value="{{ form.full_name if form.full_name is defined else '' }}" required>
@@ -54,7 +57,11 @@
                         </div>
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary">Создать</button>
+                            {% if return_to %}
+                            <a href="{{ return_to }}" class="btn btn-outline-secondary">Отмена</a>
+                            {% else %}
                             <a href="/clients" class="btn btn-outline-secondary">Отмена</a>
+                            {% endif %}
                         </div>
                     </form>
                 </div>
