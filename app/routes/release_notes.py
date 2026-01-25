@@ -100,11 +100,21 @@ async def new_release_note_form(
 ):
     """Форма создания нового релиз-ноутса"""
     from datetime import date
+    # Получаем следующую версию для подсказки
+    try:
+        next_version = get_next_version(db, "minor")
+    except:
+        next_version = __version__
+    
+    latest_note = get_latest_release_note(db)
+    
     return templates.TemplateResponse("release_note_form.html", {
         "request": request,
         "current_user": current_user,
         "release_note": None,
         "current_version": __version__,
+        "next_version": next_version,
+        "latest_release_note": latest_note,
         "active_menu": "release_notes",
         "current_date": date.today().strftime('%Y-%m-%d'),
     })
