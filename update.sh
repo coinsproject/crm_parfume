@@ -17,16 +17,31 @@ echo -e "${BLUE}=== Начало обновления Parfume CRM ===${NC}"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
+# Определяем команду docker compose (поддержка старой и новой версии)
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+elif docker compose version &> /dev/null; then
+    DOCKER_COMPOSE="docker compose"
+else
+    echo -e "${RED}Ошибка: docker-compose или docker compose не найден!${NC}"
+    echo -e "${YELLOW}Установите Docker Compose:${NC}"
+    echo -e "  Для старой версии: sudo apt-get install docker-compose"
+    echo -e "  Для новой версии: Docker Compose V2 входит в состав Docker"
+    exit 1
+fi
+
+echo -e "${BLUE}Используется команда: $DOCKER_COMPOSE${NC}"
+
 # 1. Резервное копирование
 echo -e "${YELLOW}[1/5] Создание резервной копии базы данных...${NC}"
 BACKUP_DIR="./backups"
 mkdir -p "$BACKUP_DIR"
 BACKUP_FILE="$BACKUP_DIR/crm_backup_$(date +%Y%m%d_%H%M%S).db"
 
-if docker-compose ps | grep -q "crm.*Up"; then
+if $DOCKER_COMPOSE ps 2>/dev/null | grep -q "crm.*Up"; then
     # Контейнер запущен - создаем бэкап через контейнер
-    if docker-compose exec -T crm test -f /app/data/crm.db 2>/dev/null; then
-        docker-compose exec -T crm sqlite3 /app/data/crm.db ".backup /app/data/backup_temp.db" 2>/dev/null || \
+    if $DOCKER_COMPOSE exec -T crm test -f /app/data/crm.db 2>/dev/null; then
+        $DOCKER_COMPOSE exec -T crm sqlite3 /app/data/crm.db ".backup /app/data/backup_temp.db" 2>/dev/null || \
         docker cp crm:/app/data/crm.db "$BACKUP_FILE" 2>/dev/null || {
             echo -e "${RED}Ошибка при создании резервной копии через контейнер${NC}"
             exit 1
@@ -110,10 +125,10 @@ fi
 # 4. Пересборка (если нужно)
 if [ "$NEEDS_REBUILD" = true ]; then
     echo -e "${YELLOW}[4/5] Пересборка Docker образа...${NC}"
-    docker-compose build || {
+    $DOCKER_COMPOSE build || {
         echo -e "${RED}Ошибка при пересборке образа${NC}"
         echo -e "${YELLOW}Попытка пересборки без кэша...${NC}"
-        docker-compose build --no-cache || {
+        $DOCKER_COMPOSE build --no-cache || {
             echo -e "${RED}Критическая ошибка при пересборке!${NC}"
             echo -e "${YELLOW}Откат к предыдущей версии...${NC}"
             git checkout HEAD@{1}
@@ -129,7 +144,7 @@ fi
 echo -e "${YELLOW}[5/5] Применение миграций и перезапуск...${NC}"
 
 # Запускаем контейнеры
-docker-compose up -d || {
+$DOCKER_COMPOSE up -d || {
     echo -e "${RED}Ошибка при запуске контейнеров${NC}"
     exit 1
 }
@@ -139,15 +154,15 @@ echo -e "${BLUE}Ожидание запуска контейнера...${NC}"
 sleep 5
 
 # Проверяем, что контейнер запущен
-if ! docker-compose ps | grep -q "crm.*Up"; then
+if ! $DOCKER_COMPOSE ps 2>/dev/null | grep -q "crm.*Up"; then
     echo -e "${RED}Контейнер не запустился!${NC}"
-    echo -e "${YELLOW}Проверьте логи: docker-compose logs crm${NC}"
+    echo -e "${YELLOW}Проверьте логи: $DOCKER_COMPOSE logs crm${NC}"
     exit 1
 fi
 
 # Применяем миграции
 echo -e "${BLUE}Применение миграций базы данных...${NC}"
-if docker-compose exec -T crm alembic upgrade head 2>&1 | tee /tmp/migration_output.log; then
+if $DOCKER_COMPOSE exec -T crm alembic upgrade head 2>&1 | tee /tmp/migration_output.log; then
     echo -e "${GREEN}✓ Миграции применены успешно${NC}"
 else
     MIGRATION_ERROR=$?
@@ -163,7 +178,7 @@ else
     if [ "$response" = "y" ] || [ "$response" = "Y" ]; then
         echo -e "${YELLOW}Откат к предыдущей версии...${NC}"
         git checkout HEAD@{1}
-        docker-compose restart
+        $DOCKER_COMPOSE restart
         exit 1
     else
         echo -e "${YELLOW}Продолжаем без отката. Проверьте миграции вручную.${NC}"
@@ -199,7 +214,7 @@ if [ "$HEALTH_CHECK_PASSED" = true ]; then
     echo -e "${GREEN}=== Обновление завершено успешно ===${NC}"
 else
     echo -e "${RED}Приложение не отвечает на health check!${NC}"
-    echo -e "${YELLOW}Проверьте логи: docker-compose logs --tail=50 crm${NC}"
+    echo -e "${YELLOW}Проверьте логи: $DOCKER_COMPOSE logs --tail=50 crm${NC}"
     echo -e "${YELLOW}Резервная копия сохранена: $BACKUP_FILE${NC}"
     exit 1
 fi
