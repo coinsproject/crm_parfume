@@ -14,6 +14,13 @@ document.addEventListener('DOMContentLoaded', function() {
         newBackdrop.addEventListener('click', function() {
             closeMobileMenu();
         });
+        
+        // Закрытие по ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && sidebar && sidebar.classList.contains('show')) {
+                closeMobileMenu();
+            }
+        });
     }
 
     function openMobileMenu() {
@@ -24,6 +31,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 backdropEl.classList.add('show');
             }
             document.body.style.overflow = 'hidden';
+            if (mobileMenuToggle) {
+                mobileMenuToggle.setAttribute('aria-expanded', 'true');
+                mobileMenuToggle.setAttribute('aria-label', 'Закрыть меню');
+            }
         }
     }
 
@@ -35,6 +46,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 backdropEl.classList.remove('show');
             }
             document.body.style.overflow = '';
+            if (mobileMenuToggle) {
+                mobileMenuToggle.setAttribute('aria-expanded', 'false');
+                mobileMenuToggle.setAttribute('aria-label', 'Открыть меню');
+            }
         }
     }
 
@@ -48,6 +63,11 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 openMobileMenu();
             }
+        });
+        
+        // Улучшение доступности
+        mobileMenuToggle.addEventListener('touchstart', function(e) {
+            e.preventDefault();
         });
     }
 
@@ -64,10 +84,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Закрытие меню при изменении размера окна (если перешли на десктоп)
+    let resizeTimer;
     window.addEventListener('resize', function() {
-        if (window.innerWidth > 767) {
-            closeMobileMenu();
-        }
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function() {
+            if (window.innerWidth > 767) {
+                closeMobileMenu();
+            }
+        }, 250);
     });
 });
 

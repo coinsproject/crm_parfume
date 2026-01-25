@@ -1,23 +1,26 @@
 <div class="topbar border-bottom">
   <div class="container-fluid px-3">
     <div class="topbar-content d-flex align-items-center">
-      <button class="mobile-menu-toggle" type="button" aria-label="Открыть меню">
+      <button class="mobile-menu-toggle" type="button" aria-label="Открыть меню" aria-expanded="false">
         <i class="fas fa-bars"></i>
       </button>
-      <h1 class="topbar-title mb-0 flex-grow-1">{% block page_title %}{% endblock %}</h1>
-      <div class="topbar-actions d-flex align-items-center gap-2">
+      <h1 class="topbar-title mb-0 flex-grow-1 text-truncate">{% block page_title %}{% endblock %}</h1>
+      <div class="topbar-actions d-flex align-items-center gap-2 flex-shrink-0">
         {% if current_user %}
           {% if current_user.role and current_user.role.name == 'PARTNER' %}
-          <a class="btn btn-outline-secondary btn-sm" href="/partners/me">Профиль</a>
+          <a class="btn btn-outline-secondary btn-sm d-none d-md-inline-flex" href="/partners/me">
+            <span class="d-none d-lg-inline">Профиль</span>
+            <i class="fas fa-user d-lg-none"></i>
+          </a>
           {% endif %}
-          <a href="/notifications" class="btn btn-outline-secondary btn-sm position-relative" title="Уведомления">
+          <a href="/notifications" class="btn btn-outline-secondary btn-sm position-relative" title="Уведомления" aria-label="Уведомления">
             <i class="fas fa-bell"></i>
             <span id="notification-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display: none;">
               0
             </span>
           </a>
         <div class="user-profile">
-          <div class="user-avatar" title="{{ current_user.username }}">
+          <div class="user-avatar" title="{{ current_user.username }}" role="button" tabindex="0" aria-label="Профиль пользователя">
             {{ current_user.username[0:2].upper() }}
           </div>
         </div>
