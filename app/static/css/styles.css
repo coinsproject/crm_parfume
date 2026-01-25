@@ -1513,3 +1513,166 @@ body {
     color: #6b7280;
 }
 
+/* Дополнительные улучшения для мобильных устройств */
+
+/* Улучшение для таблиц - альтернативный вид на мобильных */
+@media (max-width: 767px) {
+    /* Скрываем некоторые колонки на мобильных */
+    .table th:nth-child(n+4),
+    .table td:nth-child(n+4) {
+        display: none;
+    }
+
+    /* Показываем важные колонки */
+    .table th:first-child,
+    .table td:first-child,
+    .table th:nth-child(2),
+    .table td:nth-child(2),
+    .table th:nth-child(3),
+    .table td:nth-child(3) {
+        display: table-cell;
+    }
+
+    /* Улучшение для таблиц с действиями */
+    .table-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .table-actions .btn {
+        width: 100%;
+    }
+}
+
+/* Улучшение для форм поиска и фильтров */
+@media (max-width: 767px) {
+    .search-filters {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .search-filters .form-control,
+    .search-filters .form-select {
+        width: 100%;
+        margin-bottom: 0;
+    }
+
+    .search-filters .btn {
+        width: 100%;
+    }
+}
+
+/* Улучшение для карточек товаров/продуктов */
+@media (max-width: 767px) {
+    .product-card,
+    .item-card {
+        margin-bottom: 1rem;
+    }
+
+    .product-card .card-body,
+    .item-card .card-body {
+        padding: 1rem;
+    }
+
+    .product-card .card-title,
+    .item-card .card-title {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .product-card .card-text,
+    .item-card .card-text {
+        font-size: 0.875rem;
+    }
+}
+
+/* Улучшение для навигации */
+@media (max-width: 767px) {
+    .breadcrumb {
+        font-size: 0.875rem;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        padding: 0.25rem 0;
+    }
+}
+
+/* Улучшение для футера */
+@media (max-width: 767px) {
+    .app-footer {
+        padding: 0.75rem;
+        font-size: 0.75rem;
+    }
+
+    .app-footer .container-fluid {
+        padding: 0;
+    }
+}
+
+/* Улучшение для сайдбара на мобильных */
+@media (max-width: 767px) {
+    .sidebar-inner {
+        padding: 0;
+    }
+
+    .sidebar .nav-link {
+        border-radius: 0;
+        margin: 0;
+    }
+
+    .sidebar .nav-link.active {
+        background-color: #334155;
+        border-left: 3px solid #6366f1;
+    }
+}
+
+/* Улучшение для topbar на мобильных */
+@media (max-width: 767px) {
+    .topbar .container-fluid {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    .topbar-actions .btn-sm {
+        padding: 0.375rem 0.5rem;
+        font-size: 0.8rem;
+    }
+}
+
+/* Улучшение для модальных окон на мобильных */
+@media (max-width: 767px) {
+    .modal-dialog-centered {
+        min-height: calc(100% - 1rem);
+        margin: 0.5rem;
+    }
+
+    .modal-fullscreen-sm-down {
+        width: 100%;
+        max-width: 100%;
+        height: 100%;
+        margin: 0;
+        border-radius: 0;
+    }
+}
+
+/* Улучшение для пагинации на мобильных */
+@media (max-width: 767px) {
+    .pagination {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .pagination .page-item {
+        margin: 0.25rem;
+    }
+
+    .pagination .page-link {
+        min-width: 40px;
+        min-height: 40px;
+        padding: 0.375rem 0.5rem;
+    }
+}
+
