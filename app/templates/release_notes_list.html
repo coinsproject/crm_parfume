@@ -10,7 +10,7 @@
         <h2>История изменений</h2>
         <div>
             <span class="badge bg-primary">Текущая версия: {{ current_version }}</span>
-            {% if current_user.role and current_user.role.name == 'ADMIN' %}
+            {% if is_admin %}
             <a href="/release_notes/admin/new" class="btn btn-primary btn-sm ms-2">
                 <i class="fas fa-plus"></i> Создать релиз-ноутс
             </a>
@@ -62,7 +62,7 @@
                 </div>
                 <div class="card-footer">
                     <a href="/release_notes/{{ note.id }}" class="btn btn-sm btn-outline-primary">Подробнее</a>
-                    {% if current_user.role and current_user.role.name == 'ADMIN' %}
+                    {% if is_admin %}
                     <a href="/release_notes/admin/{{ note.id }}/edit" class="btn btn-sm btn-outline-secondary">Редактировать</a>
                     {% endif %}
                 </div>

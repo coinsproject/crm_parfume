@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from app.db import get_db
-from app.models import User, ReleaseNote, Notification
+from app.models import User, ReleaseNote, Notification, Partner
 from app.services.auth_service import require_permission, require_roles, get_current_user_from_cookie
 from app.version import __version__
 
@@ -24,15 +24,24 @@ async def release_notes_list(
 ):
     """Список релиз-ноутсов"""
     # Для администратора показываем все релиз-ноуты, для остальных - только опубликованные
-    is_admin = getattr(current_user, "role", None) and current_user.role.name == "ADMIN"
+    is_admin = False
+    if current_user and hasattr(current_user, "role") and current_user.role:
+        is_admin = current_user.role.name == "ADMIN"
     
     if is_admin:
         release_notes = db.query(ReleaseNote).order_by(desc(ReleaseNote.release_date)).all()
     else:
         # Для партнеров показываем только опубликованные для них
-        release_notes = db.query(ReleaseNote).filter(
-            ReleaseNote.is_published_to_partners == True
-        ).order_by(desc(ReleaseNote.release_date)).all()
+        # Проверяем наличие поля is_published_to_partners (на случай, если миграция еще не применена)
+        try:
+            release_notes = db.query(ReleaseNote).filter(
+                ReleaseNote.is_published_to_partners == True
+            ).order_by(desc(ReleaseNote.release_date)).all()
+        except Exception:
+            # Если поле не существует, показываем только опубликованные для всех
+            release_notes = db.query(ReleaseNote).filter(
+                ReleaseNote.is_published == True
+            ).order_by(desc(ReleaseNote.release_date)).all()
     
     return templates.TemplateResponse("release_notes_list.html", {
         "request": request,
@@ -56,9 +65,14 @@ async def release_note_detail(
     if not release_note:
         raise HTTPException(status_code=404, detail="Релиз-ноутс не найден")
     
-    if not release_note.is_published:
-        # Проверяем права доступа для неопубликованных
-        is_admin = getattr(current_user, "role", None) and current_user.role.name == "ADMIN"
+    # Проверяем права доступа
+    is_admin = False
+    if current_user and hasattr(current_user, "role") and current_user.role:
+        is_admin = current_user.role.name == "ADMIN"
+    
+    # Проверяем доступ: если не опубликовано ни для всех, ни для партнеров - только админ
+    is_published_to_partners = getattr(release_note, "is_published_to_partners", False)
+    if not release_note.is_published and not is_published_to_partners:
         if not is_admin:
             raise HTTPException(status_code=403, detail="Нет доступа")
     
@@ -140,7 +154,6 @@ async def create_release_note(
     
     # Если опубликовано для партнеров, создаём уведомления только для партнеров
     if is_published_to_partners:
-        from app.models import Partner
         partners = db.query(Partner).filter(Partner.is_active == True).all()
         for partner in partners:
             if partner.user_id:
@@ -250,7 +263,6 @@ async def update_release_note(
     
     # Если стало опубликовано для партнеров и раньше не было, создаём уведомления для партнеров
     if is_published_to_partners and not was_published_to_partners:
-        from app.models import Partner
         partners = db.query(Partner).filter(Partner.is_active == True).all()
         for partner in partners:
             if partner.user_id:
