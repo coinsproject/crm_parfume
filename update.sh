@@ -124,9 +124,10 @@ if git diff HEAD@{1} HEAD --name-only 2>/dev/null | grep -qE "(Dockerfile|requir
     NEEDS_REBUILD=true
 fi
 
-# 4. Пересборка (если нужно)
-if [ "$NEEDS_REBUILD" = true ]; then
+# 4. Пересборка (если нужно или если код обновился)
+if [ "$NEEDS_REBUILD" = true ] || [ "$CODE_UPDATED" = true ]; then
     echo -e "${YELLOW}[4/5] Пересборка Docker образа...${NC}"
+    echo -e "${BLUE}Код обновлен, требуется пересборка образа для применения изменений${NC}"
     $DOCKER_COMPOSE build || {
         echo -e "${RED}Ошибка при пересборке образа${NC}"
         echo -e "${YELLOW}Попытка пересборки без кэша...${NC}"
