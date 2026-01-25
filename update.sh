@@ -147,6 +147,13 @@ echo -e "${YELLOW}[5/5] Применение миграций и перезап�
 echo -e "${BLUE}Остановка старых контейнеров...${NC}"
 $DOCKER_COMPOSE down 2>/dev/null || true
 
+# Принудительно удаляем контейнер по имени (если он существует)
+if docker ps -a --format '{{.Names}}' | grep -q "^parfume-crm$"; then
+    echo -e "${BLUE}Удаление старого контейнера parfume-crm...${NC}"
+    docker stop parfume-crm 2>/dev/null || true
+    docker rm -f parfume-crm 2>/dev/null || true
+fi
+
 # Запускаем контейнеры
 echo -e "${BLUE}Запуск контейнеров...${NC}"
 $DOCKER_COMPOSE up -d || {
