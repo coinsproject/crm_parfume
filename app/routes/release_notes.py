@@ -195,6 +195,7 @@ async def edit_release_note_form(
     db: Session = Depends(get_db),
 ):
     """Форма редактирования релиз-ноутса"""
+    from datetime import date
     release_note = db.query(ReleaseNote).filter(ReleaseNote.id == note_id).first()
     if not release_note:
         raise HTTPException(status_code=404, detail="Релиз-ноутс не найден")
@@ -205,6 +206,7 @@ async def edit_release_note_form(
         "release_note": release_note,
         "current_version": __version__,
         "active_menu": "release_notes",
+        "current_date": date.today().strftime('%Y-%m-%d'),
     })
 
 
