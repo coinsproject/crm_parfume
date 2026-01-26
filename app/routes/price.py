@@ -2281,24 +2281,29 @@ def _search_products(
     # Fallback: обычные ILIKE
     base_query = db.query(PriceProduct).filter(
         PriceProduct.is_in_stock.is_(True),
-        PriceProduct.is_in_current_pricelist.is_(True),
+        PriceProduct.is_in_current_pricelist.is_(True),  # Это уже фильтрует по последней загрузке!
         PriceProduct.is_active.is_(True),
     )
-    # ОПТИМИЗАЦИЯ: Для больших таблиц используем более быстрый способ фильтрации
+    # ОПТИМИЗАЦИЯ: upload_id фильтр не нужен, т.к. is_in_current_pricelist уже установлен при загрузке
+    # Это намного быстрее чем JOIN/EXISTS/IN с price_history для больших таблиц
+    # Если нужен конкретный upload_id (не последний), используем фильтр только если это критично
     if upload_id:
-        # Для одного upload_id с большим количеством записей JOIN/EXISTS/IN могут быть медленными
-        # Используем прямой список ID из кеша или быстрый запрос
-        from app.models import PriceHistory
-        # Получаем список product_id напрямую (с индексом это быстро)
-        product_ids = db.query(PriceHistory.price_product_id).filter(
-            PriceHistory.price_upload_id == upload_id
-        ).distinct().limit(100000).all()  # Лимит для безопасности
-        product_ids_list = [pid[0] for pid in product_ids]
-        if product_ids_list:
-            base_query = base_query.filter(PriceProduct.id.in_(product_ids_list))
-        else:
-            # Если нет записей для этого upload_id, возвращаем пустой результат
-            base_query = base_query.filter(PriceProduct.id == -1)  # Невозможное условие
+        # Проверяем, это последний upload_id?
+        from app.models import PriceUpload
+        latest_upload = db.query(PriceUpload).order_by(PriceUpload.uploaded_at.desc()).first()
+        if latest_upload and latest_upload.id != upload_id:
+            # Нужен не последний upload_id - используем быстрый фильтр через price_history
+            # Но только если это действительно нужно (для истории)
+            from app.models import PriceHistory
+            product_ids = db.query(PriceHistory.price_product_id).filter(
+                PriceHistory.price_upload_id == upload_id
+            ).distinct().limit(100000).all()
+            product_ids_list = [pid[0] for pid in product_ids]
+            if product_ids_list:
+                base_query = base_query.filter(PriceProduct.id.in_(product_ids_list))
+            else:
+                base_query = base_query.filter(PriceProduct.id == -1)  # Невозможное условие
+        # Если это последний upload_id, фильтр не нужен - is_in_current_pricelist уже работает
     # Фильтр по бренду
     if brand and brand.strip():
         base_query = base_query.filter(PriceProduct.brand.ilike(f"%{brand.strip()}%"))
