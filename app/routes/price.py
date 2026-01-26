@@ -2284,21 +2284,24 @@ def _search_products(
         PriceProduct.is_in_current_pricelist.is_(True),
         PriceProduct.is_active.is_(True),
     )
-    # ОПТИМИЗАЦИЯ: Для последнего upload_id is_in_current_pricelist уже фильтрует правильно
+    # ОПТИМИЗАЦИЯ: Для последнего upload_id используем is_in_current_pricelist (быстро)
     # Для старых upload_id используем фильтр через price_history
-    # Но всегда проверяем upload_id для точности
     if upload_id:
         from app.models import PriceUpload, PriceHistory
         # Проверяем, это последний upload_id?
         latest_upload = db.query(PriceUpload).order_by(PriceUpload.uploaded_at.desc()).first()
         if latest_upload and latest_upload.id == upload_id:
             # Это последний upload_id - is_in_current_pricelist уже фильтрует правильно
-            # Дополнительный фильтр не нужен, но оставляем базовый фильтр is_in_current_pricelist
+            # Дополнительный фильтр не нужен
             pass
         else:
-            # Нужен не последний upload_id - используем быстрый фильтр через price_history
-            # Но сначала снимаем фильтр is_in_current_pricelist, т.к. он относится к последнему прайсу
-            base_query = base_query.filter(PriceProduct.is_in_current_pricelist.is_(None) | (PriceProduct.is_in_current_pricelist.is_(True)))
+            # Нужен не последний upload_id - убираем фильтр is_in_current_pricelist и используем price_history
+            # Пересоздаем запрос без is_in_current_pricelist
+            base_query = db.query(PriceProduct).filter(
+                PriceProduct.is_in_stock.is_(True),
+                PriceProduct.is_active.is_(True),
+            )
+            # Применяем фильтр через price_history
             product_ids = db.query(PriceHistory.price_product_id).filter(
                 PriceHistory.price_upload_id == upload_id
             ).distinct().limit(100000).all()
