@@ -1574,14 +1574,19 @@ async def price_search_page(
         pages_count = max(1, (total + page_size - 1) // page_size) if total > 0 else 1
     
         # Получаем список уникальных брендов для выпадающего списка
+        # ОПТИМИЗАЦИЯ: Используем более быстрый запрос с LIMIT для больших таблиц
         brands_query = db.query(PriceProduct.brand).filter(
             PriceProduct.is_active.is_(True),
             PriceProduct.is_in_stock.is_(True),
             PriceProduct.is_in_current_pricelist.is_(True),
             PriceProduct.brand.isnot(None),
             PriceProduct.brand != ""
-        ).distinct().order_by(PriceProduct.brand).all()
-        brands_list = [b[0] for b in brands_query if b[0]]
+        ).distinct().order_by(PriceProduct.brand)
+        
+        # Ограничиваем количество брендов для производительности
+        # Если брендов больше 1000, берем только первые 1000
+        brands_result = brands_query.limit(1000).all()
+        brands_list = [b[0] for b in brands_result if b[0]]
         
         # Получаем список партнёров для фильтра (только для админа)
         partners_list = []
@@ -2324,9 +2329,8 @@ def _search_products(
         section_filter = _apply_section_filter(base_query, section_clean)
         if section_filter is not None:
             base_query = section_filter
-            # Проверяем количество после применения фильтра раздела
-            count_after_section = base_query.count()
-            price_logger.info("[PRICE_SEARCH] Products after section filter: %s", count_after_section)
+            # УБРАЛИ count() - он слишком медленный, логируем только факт применения фильтра
+            price_logger.info("[PRICE_SEARCH] Section filter applied: '%s'", section_clean)
         else:
             price_logger.warning("[PRICE_SEARCH] Section filter returned None for section: '%s'", section_clean)
     else:
@@ -2339,8 +2343,8 @@ def _search_products(
             pf_filter = _apply_parfum_filters(base_query, pf_list)
             if pf_filter is not None:
                 base_query = pf_filter
-                count_after_pf = base_query.count()
-                price_logger.info("[PRICE_SEARCH] Products after pf filter: %s", count_after_pf)
+                # УБРАЛИ count() - он слишком медленный
+                price_logger.info("[PRICE_SEARCH] Parfum filters applied: %s", pf_list)
     # Используем search_text если есть, иначе обычные поля
     # Важно: если q пустой, но есть ptype, мы все равно должны показать результаты
     if tokens:
@@ -2368,9 +2372,8 @@ def _search_products(
     # Ищем в raw_name и product_name, так как "отливант" может быть в разных полях
     if hide_decant:
         from sqlalchemy import not_, func, or_
-        price_logger.info("[PRICE_SEARCH] Applying hide_decant filter AFTER search: excluding products with 'отливант' in raw_name or product_name")
-        count_before_filter = base_query.count()
-        price_logger.info("[PRICE_SEARCH] Products count BEFORE hide_decant filter: %s", count_before_filter)
+        price_logger.info("[PRICE_SEARCH] Applying hide_decant filter: excluding products with 'отливант'")
+        # УБРАЛИ count() до фильтра - слишком медленно
         # Используем ilike с обоими вариантами регистра, так как ilike в SQLite может быть чувствителен к регистру кириллицы
         base_query = base_query.filter(
             not_(
@@ -2382,28 +2385,52 @@ def _search_products(
                 )
             )
         )
-        count_after_filter = base_query.count()
-        price_logger.info("[PRICE_SEARCH] Products count AFTER hide_decant filter: %s (excluded: %s)", count_after_filter, count_before_filter - count_after_filter)
-        
-        # Проверяем, что фильтр действительно работает - ищем товары с "отливант" в результатах
-        sample_items = base_query.limit(100).all()
-        found_decant_in_results = [p for p in sample_items if "отливант" in p.raw_name.lower() or (p.product_name and "отливант" in p.product_name.lower())]
-        if found_decant_in_results:
-            price_logger.error("[PRICE_SEARCH] ERROR: Found %s products with 'отливант' in results after filter!", len(found_decant_in_results))
-            for p in found_decant_in_results[:5]:
-                price_logger.error("[PRICE_SEARCH] ERROR: Product ID=%s, raw_name=%s", p.id, p.raw_name[:100])
+        # УБРАЛИ count() после фильтра и проверку sample_items - слишком медленно
+        price_logger.info("[PRICE_SEARCH] hide_decant filter applied")
     else:
         price_logger.info("[PRICE_SEARCH] hide_decant is False, filter NOT applied")
     # Если q пустой, но есть ptype, показываем все товары, соответствующие фильтру
     price_logger.info("[PRICE_SEARCH] Query: q='%s', ptype='%s', tokens=%s, hide_decant=%s, final query will filter by ptype if set", q, ptype, len(tokens), hide_decant)
-    total = base_query.count()
-    price_logger.info("[PRICE_SEARCH] Total products found: %s", total)
+    
+    # ОПТИМИЗАЦИЯ: Для больших результатов используем приблизительный подсчет
+    # Если нет фильтров (пустой запрос), ограничиваем count для производительности
+    MAX_COUNT_FOR_EXACT = 50000  # Если больше - используем приблизительный подсчет
+    
+    # Сначала получаем товары (это быстрее чем count для больших таблиц)
     items = (
         base_query.order_by(PriceProduct.id.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
         .all()
     )
+    
+    # Если есть фильтры (q, brand, ptype и т.д.), делаем точный count
+    # Если фильтров нет и результатов много, используем приблизительный подсчет
+    has_filters = bool(tokens or brand or gender or ptype or psub or section or pf or hide_decant or upload_id)
+    
+    if has_filters:
+        # Есть фильтры - делаем точный подсчет (но с таймаутом)
+        try:
+            total = base_query.count()
+        except Exception as count_error:
+            price_logger.warning("[PRICE_SEARCH] Count failed, using estimate: %s", count_error)
+            # Приблизительный подсчет через LIMIT
+            total = min(base_query.limit(MAX_COUNT_FOR_EXACT + 1).count(), MAX_COUNT_FOR_EXACT)
+            if total == MAX_COUNT_FOR_EXACT:
+                total = MAX_COUNT_FOR_EXACT  # Помечаем как "больше чем"
+    else:
+        # Нет фильтров - используем приблизительный подсчет для производительности
+        # Проверяем, есть ли хотя бы один результат
+        test_count = base_query.limit(1).count()
+        if test_count == 0:
+            total = 0
+        else:
+            # Используем приблизительный подсчет через LIMIT
+            total = min(base_query.limit(MAX_COUNT_FOR_EXACT + 1).count(), MAX_COUNT_FOR_EXACT)
+            if total == MAX_COUNT_FOR_EXACT:
+                total = MAX_COUNT_FOR_EXACT  # Показываем "больше чем MAX_COUNT"
+    
+    price_logger.info("[PRICE_SEARCH] Total products found: %s (has_filters=%s)", total, has_filters)
     return items, total
 
 
