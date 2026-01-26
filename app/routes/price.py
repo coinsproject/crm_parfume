@@ -1257,8 +1257,9 @@ async def upload_price(
         
         # Запускаем фоновую задачу для создания карточек каталога из нормализованных товаров
         # Это будет выполняться после завершения загрузки, не блокируя ответ
-        background_tasks.add_task(create_catalog_items_from_price_batch, upload.id, batch_size=200)
-        price_logger.info(f"[PRICE_UPLOAD] Upload {upload.id} completed. Background catalog creation started.")
+        # ВРЕМЕННО ОТКЛЮЧЕНО для оптимизации производительности
+        # background_tasks.add_task(create_catalog_items_from_price_batch, upload.id, batch_size=200)
+        price_logger.info(f"[PRICE_UPLOAD] Upload {upload.id} completed. Background catalog creation DISABLED for performance.")
         
         return RedirectResponse(url="/price/upload_page", status_code=303)
     except HTTPException:
