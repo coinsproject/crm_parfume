@@ -13,8 +13,9 @@ fi
 
 # Применяем миграции Alembic (для обновления структуры БД)
 echo "Applying database migrations..."
-alembic upgrade head || {
+alembic upgrade head 2>&1 || {
     echo "Warning: Migrations may have failed, but continuing..."
+    echo "You may need to apply migrations manually: alembic upgrade head"
 }
 
 echo "Starting application..."
