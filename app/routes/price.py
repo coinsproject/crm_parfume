@@ -2414,12 +2414,19 @@ def _search_products(
     price_logger.info("[PRICE_SEARCH] Query: q='%s', ptype='%s', tokens=%s, hide_decant=%s, final query will filter by ptype if set", q, ptype, len(tokens), hide_decant)
     
     # Получаем товары для текущей страницы
-    items = (
-        base_query.order_by(PriceProduct.id.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-        .all()
-    )
+    # Логируем запрос для отладки
+    price_logger.info("[PRICE_SEARCH] Getting items: page=%s, page_size=%s, upload_id=%s", page, page_size, upload_id)
+    try:
+        items = (
+            base_query.order_by(PriceProduct.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .all()
+        )
+        price_logger.info("[PRICE_SEARCH] Items retrieved: %s", len(items))
+    except Exception as items_error:
+        price_logger.exception("[PRICE_SEARCH] Error getting items: %s", items_error)
+        items = []
     
     # Делаем точный подсчет всех товаров (теперь это быстро благодаря оптимизациям)
     # Убрали ограничение MAX_COUNT_FOR_EXACT - показываем все товары
