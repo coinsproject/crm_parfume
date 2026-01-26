@@ -36,7 +36,31 @@ async def release_notes_list(
         is_admin = current_user.role.name == "ADMIN"
     
     if is_admin:
-        release_notes = db.query(ReleaseNote).order_by(desc(ReleaseNote.release_date)).all()
+        # Для админа показываем все, но проверяем наличие полей
+        try:
+            release_notes = db.query(ReleaseNote).order_by(desc(ReleaseNote.release_date)).all()
+        except Exception as e:
+            # Если миграция не применена, используем безопасный запрос
+            from sqlalchemy import text
+            try:
+                # Проверяем наличие колонок
+                result = db.execute(text("PRAGMA table_info(release_notes)"))
+                columns = [row[1] for row in result.fetchall()]
+                if 'is_published_to_partners' not in columns:
+                    # Миграция не применена, используем только базовые поля
+                    release_notes = db.query(ReleaseNote).with_entities(
+                        ReleaseNote.id, ReleaseNote.version, ReleaseNote.title,
+                        ReleaseNote.description, ReleaseNote.release_type,
+                        ReleaseNote.release_date, ReleaseNote.changes,
+                        ReleaseNote.is_published, ReleaseNote.is_important,
+                        ReleaseNote.created_at, ReleaseNote.updated_at,
+                        ReleaseNote.created_by_user_id
+                    ).order_by(desc(ReleaseNote.release_date)).all()
+                else:
+                    release_notes = db.query(ReleaseNote).order_by(desc(ReleaseNote.release_date)).all()
+            except Exception:
+                # В крайнем случае возвращаем пустой список
+                release_notes = []
     else:
         # Для партнеров показываем только опубликованные для них
         # Проверяем наличие поля is_published_to_partners (на случай, если миграция еще не применена)
