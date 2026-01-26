@@ -2407,29 +2407,27 @@ def _search_products(
     
     # Если есть фильтры (q, brand, ptype и т.д.), делаем точный count
     # Если фильтров нет и результатов много, используем приблизительный подсчет
-    has_filters = bool(tokens or brand or gender or ptype or psub or section or pf or hide_decant or upload_id)
+    # upload_id не считается фильтром для оптимизации - он применяется всегда
+    has_filters = bool(tokens or brand or gender or ptype or psub or section or pf or hide_decant)
     
-    if has_filters:
-        # Есть фильтры - делаем точный подсчет (но с таймаутом)
-        try:
-            total = base_query.count()
-        except Exception as count_error:
-            price_logger.warning("[PRICE_SEARCH] Count failed, using estimate: %s", count_error)
-            # Приблизительный подсчет через LIMIT
-            total = min(base_query.limit(MAX_COUNT_FOR_EXACT + 1).count(), MAX_COUNT_FOR_EXACT)
-            if total == MAX_COUNT_FOR_EXACT:
-                total = MAX_COUNT_FOR_EXACT  # Помечаем как "больше чем"
-    else:
-        # Нет фильтров - используем приблизительный подсчет для производительности
-        # Проверяем, есть ли хотя бы один результат
+    # ОПТИМИЗАЦИЯ: Для больших таблиц всегда используем приблизительный подсчет
+    # Точный count() слишком медленный для 90,000+ товаров
+    # Проверяем, есть ли хотя бы один результат
+    try:
         test_count = base_query.limit(1).count()
         if test_count == 0:
             total = 0
         else:
-            # Используем приблизительный подсчет через LIMIT
+            # Используем приблизительный подсчет через LIMIT для производительности
+            # Это работает быстро даже для больших таблиц
             total = min(base_query.limit(MAX_COUNT_FOR_EXACT + 1).count(), MAX_COUNT_FOR_EXACT)
             if total == MAX_COUNT_FOR_EXACT:
                 total = MAX_COUNT_FOR_EXACT  # Показываем "больше чем MAX_COUNT"
+            price_logger.info("[PRICE_SEARCH] Using approximate count for performance (has_filters=%s)", has_filters)
+    except Exception as count_error:
+        price_logger.warning("[PRICE_SEARCH] Count failed, using fallback: %s", count_error)
+        # Fallback: если даже приблизительный подсчет не работает, используем константу
+        total = MAX_COUNT_FOR_EXACT
     
     price_logger.info("[PRICE_SEARCH] Total products found: %s (has_filters=%s)", total, has_filters)
     return items, total
