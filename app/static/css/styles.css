@@ -20,16 +20,18 @@ body {
     min-height: 100vh;
 }
 
-/* Сайдбар */
-.sidebar {
-    width: 260px;
-    background: #1e293b;
-    color: white;
-    padding: 1.5rem 0;
-    position: fixed;
-    height: 100vh;
-    overflow-y: auto;
-    z-index: 1000;
+/* Сайдбар - только для десктопа (1024px+) */
+@media (min-width: 1024px) {
+    .sidebar {
+        width: 260px;
+        background: #1e293b;
+        color: white;
+        padding: 1.5rem 0;
+        position: fixed;
+        height: 100vh;
+        overflow-y: auto;
+        z-index: 1000;
+    }
 }
 
 .sidebar-header {
@@ -70,12 +72,14 @@ body {
     font-size: 1.1rem;
 }
 
-/* Основной контент */
-.main-content {
-    flex: 1;
-    margin-left: 260px;
-    display: flex;
-    flex-direction: column;
+/* Основной контент - только для десктопа */
+@media (min-width: 1024px) {
+    .main-content {
+        flex: 1;
+        margin-left: 260px;
+        display: flex;
+        flex-direction: column;
+    }
 }
 
 /* Верхняя панель */
@@ -496,7 +500,7 @@ body {
 @media (max-width: 767px) {
     /* Телефон (< 768px) */
     .mobile-menu-toggle {
-        display: block;
+        display: block !important;
         min-width: 44px;
         min-height: 44px;
         padding: 0.5rem;
@@ -510,33 +514,39 @@ body {
 
     .app-shell {
         position: relative;
+        display: flex !important;
+        flex-direction: column !important;
     }
 
     /* Сайдбар скрыт по умолчанию на мобильных */
     .sidebar {
-        position: fixed;
-        left: -100%;
-        top: 0;
-        width: 280px;
-        max-width: 85vw;
-        height: 100vh;
-        z-index: 1050;
+        position: fixed !important;
+        left: -100% !important;
+        top: 0 !important;
+        width: 280px !important;
+        max-width: 85vw !important;
+        height: 100vh !important;
+        z-index: 1050 !important;
         transition: left 0.3s ease;
         box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
         overflow-y: auto;
+        flex: none !important;
     }
 
     .sidebar.show {
-        left: 0;
+        left: 0 !important;
     }
 
     .app-main {
-        width: 100%;
+        width: 100% !important;
         margin-left: 0 !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
     }
 
     .main-content {
         margin-left: 0 !important;
+        width: 100% !important;
     }
 
     /* Topbar для мобильных */
@@ -970,9 +980,16 @@ body {
         grid-template-columns: 1fr;
     }
 
+    /* Сайдбар на планшетах - скрыт, открывается по клику */
     .sidebar {
-        width: 260px;
-        max-width: 90vw;
+        position: fixed !important;
+        left: -100% !important;
+        width: 280px !important;
+        max-width: 85vw !important;
+    }
+    
+    .sidebar.show {
+        left: 0 !important;
     }
 
     .btn {
@@ -1397,20 +1414,34 @@ body {
     display: flex;
 }
 
-.sidebar {
-    flex: 0 0 240px;
-    background-color: #111827;
-    color: #ffffff;
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    position: sticky;
-    top: 0;
-    overflow-y: auto;
+/* Базовые стили сайдбара для десктопа */
+@media (min-width: 768px) {
+    .sidebar {
+        flex: 0 0 240px;
+        background-color: #111827;
+        color: #ffffff;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        position: sticky;
+        top: 0;
+        overflow-y: auto;
+    }
 }
 
 /* Закрытие сайдбара на мобильных при клике на ссылку */
 @media (max-width: 767px) {
+    .sidebar {
+        flex: none !important;
+        position: fixed !important;
+        left: -100% !important;
+        top: 0 !important;
+        width: 280px !important;
+        max-width: 85vw !important;
+        height: 100vh !important;
+        z-index: 1050 !important;
+    }
+    
     .sidebar .nav-link:active,
     .sidebar .nav-link:focus {
         outline: none;
@@ -1673,6 +1704,45 @@ body {
         min-width: 40px;
         min-height: 40px;
         padding: 0.375rem 0.5rem;
+    }
+}
+
+/* КРИТИЧЕСКИ ВАЖНО: Строгие правила для мобильных устройств - должны быть в конце файла */
+@media (max-width: 1023px) {
+    /* На планшетах и телефонах сайдбар должен быть скрыт по умолчанию */
+    .sidebar {
+        position: fixed !important;
+        left: -100% !important;
+        top: 0 !important;
+        width: 280px !important;
+        max-width: 85vw !important;
+        height: 100vh !important;
+        z-index: 1050 !important;
+        flex: none !important;
+        transition: left 0.3s ease !important;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3) !important;
+    }
+    
+    .sidebar.show {
+        left: 0 !important;
+    }
+    
+    /* Основной контент занимает всю ширину */
+    .app-main {
+        width: 100% !important;
+        margin-left: 0 !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+    }
+    
+    .main-content {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    
+    .app-shell {
+        display: flex !important;
+        flex-direction: column !important;
     }
 }
 
