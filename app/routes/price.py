@@ -2406,11 +2406,7 @@ def _search_products(
     # Если q пустой, но есть ptype, показываем все товары, соответствующие фильтру
     price_logger.info("[PRICE_SEARCH] Query: q='%s', ptype='%s', tokens=%s, hide_decant=%s, final query will filter by ptype if set", q, ptype, len(tokens), hide_decant)
     
-    # ОПТИМИЗАЦИЯ: Для больших результатов используем приблизительный подсчет
-    # Если нет фильтров (пустой запрос), ограничиваем count для производительности
-    MAX_COUNT_FOR_EXACT = 50000  # Если больше - используем приблизительный подсчет
-    
-    # Сначала получаем товары (это быстрее чем count для больших таблиц)
+    # Получаем товары для текущей страницы
     items = (
         base_query.order_by(PriceProduct.id.desc())
         .offset((page - 1) * page_size)
@@ -2418,38 +2414,19 @@ def _search_products(
         .all()
     )
     
-    # Если есть фильтры (q, brand, ptype и т.д.), делаем точный count
-    # Если фильтров нет и результатов много, используем приблизительный подсчет
-    # upload_id не считается фильтром для оптимизации - он применяется всегда
-    has_filters = bool(tokens or brand or gender or ptype or psub or section or pf or hide_decant)
-    
-    # ОПТИМИЗАЦИЯ: Для больших таблиц всегда используем приблизительный подсчет
-    # Точный count() слишком медленный для 90,000+ товаров, особенно с EXISTS подзапросами
-    # Если есть items, значит результаты есть - используем приблизительный подсчет
-    if not items:
-        total = 0
-    else:
-        # Используем приблизительный подсчет на основе количества items
-        # Для больших таблиц это намного быстрее чем count() с EXISTS
-        try:
-            # Пробуем быстрый подсчет через LIMIT, но с таймаутом
-            # Если запрос с upload_id (EXISTS), это все равно может быть медленно
-            # Поэтому используем эвристику: если items получены, значит есть результаты
-            if upload_id:
-                # Для запросов с upload_id используем консервативную оценку
-                # чтобы избежать медленного EXISTS count()
-                total = MAX_COUNT_FOR_EXACT  # Показываем "много результатов"
-                price_logger.info("[PRICE_SEARCH] Using estimated count for upload_id query (has_filters=%s)", has_filters)
-            else:
-                # Для запросов без upload_id можем попробовать быстрый подсчет
-                total = min(base_query.limit(MAX_COUNT_FOR_EXACT + 1).count(), MAX_COUNT_FOR_EXACT)
-                if total == MAX_COUNT_FOR_EXACT:
-                    total = MAX_COUNT_FOR_EXACT
-                price_logger.info("[PRICE_SEARCH] Using approximate count (has_filters=%s)", has_filters)
-        except Exception as count_error:
-            price_logger.warning("[PRICE_SEARCH] Count failed, using fallback: %s", count_error)
-            # Fallback: если даже приблизительный подсчет не работает, используем константу
-            total = MAX_COUNT_FOR_EXACT
+    # Делаем точный подсчет всех товаров (теперь это быстро благодаря оптимизациям)
+    # Убрали ограничение MAX_COUNT_FOR_EXACT - показываем все товары
+    try:
+        total = base_query.count()
+        price_logger.info("[PRICE_SEARCH] Total products found: %s", total)
+    except Exception as count_error:
+        price_logger.warning("[PRICE_SEARCH] Count failed: %s", count_error)
+        # Fallback: если count не работает, используем оценку на основе items
+        if items:
+            # Если есть items, значит есть результаты - используем консервативную оценку
+            total = 100000  # Большое число для показа "много результатов"
+        else:
+            total = 0
     
     price_logger.info("[PRICE_SEARCH] Total products found: %s (has_filters=%s)", total, has_filters)
     return items, total
