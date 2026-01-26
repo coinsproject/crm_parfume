@@ -2286,14 +2286,19 @@ def _search_products(
     )
     # ОПТИМИЗАЦИЯ: Для больших таблиц используем более быстрый способ фильтрации
     if upload_id:
-        # Для одного upload_id с большим количеством записей JOIN может быть медленным
-        # Используем подзапрос с IN для лучшей производительности
+        # Для одного upload_id с большим количеством записей JOIN/EXISTS/IN могут быть медленными
+        # Используем прямой список ID из кеша или быстрый запрос
         from app.models import PriceHistory
-        # Получаем список product_id из price_history для этого upload_id (быстрее чем JOIN)
-        product_ids_subquery = db.query(PriceHistory.price_product_id).filter(
+        # Получаем список product_id напрямую (с индексом это быстро)
+        product_ids = db.query(PriceHistory.price_product_id).filter(
             PriceHistory.price_upload_id == upload_id
-        ).distinct().subquery()
-        base_query = base_query.filter(PriceProduct.id.in_(db.query(product_ids_subquery.c.price_product_id)))
+        ).distinct().limit(100000).all()  # Лимит для безопасности
+        product_ids_list = [pid[0] for pid in product_ids]
+        if product_ids_list:
+            base_query = base_query.filter(PriceProduct.id.in_(product_ids_list))
+        else:
+            # Если нет записей для этого upload_id, возвращаем пустой результат
+            base_query = base_query.filter(PriceProduct.id == -1)  # Невозможное условие
     # Фильтр по бренду
     if brand and brand.strip():
         base_query = base_query.filter(PriceProduct.brand.ilike(f"%{brand.strip()}%"))
