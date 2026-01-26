@@ -2284,7 +2284,7 @@ def _search_products(
         PriceProduct.is_in_current_pricelist.is_(True),
         PriceProduct.is_active.is_(True),
     )
-    # ОПТИМИЗАЦИЯ: Для последнего upload_id используем is_in_current_pricelist (быстро)
+    # ОПТИМИЗАЦИЯ: Для последнего upload_id is_in_current_pricelist уже фильтрует правильно
     # Для старых upload_id используем фильтр через price_history
     if upload_id:
         from app.models import PriceUpload, PriceHistory
@@ -2292,7 +2292,7 @@ def _search_products(
         latest_upload = db.query(PriceUpload).order_by(PriceUpload.uploaded_at.desc()).first()
         if latest_upload and latest_upload.id == upload_id:
             # Это последний upload_id - is_in_current_pricelist уже фильтрует правильно
-            # Дополнительный фильтр не нужен
+            # Дополнительный фильтр не нужен - просто используем базовый запрос
             pass
         else:
             # Нужен не последний upload_id - убираем фильтр is_in_current_pricelist и используем price_history
