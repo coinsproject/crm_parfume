@@ -2442,7 +2442,7 @@ def _search_products(
         else:
             total = 0
     
-    price_logger.info("[PRICE_SEARCH] Total products found: %s (has_filters=%s)", total, has_filters)
+    price_logger.info("[PRICE_SEARCH] Total products found: %s", total)
     return items, total
 
 
