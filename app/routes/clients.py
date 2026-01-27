@@ -352,6 +352,7 @@ async def update_client(
                         "full_name": full_name,
                         "phone": phone,
                         "email": email,
+                        "telegram": telegram,
                         "city": city,
                         "notes": notes,
                         "partner_id": partner_id_int,
@@ -378,6 +379,7 @@ async def update_client(
                         "full_name": full_name,
                         "phone": phone,
                         "email": email,
+                        "telegram": telegram,
                         "city": city,
                         "notes": notes,
                         "partner_id": partner_id_int,
@@ -410,6 +412,7 @@ async def update_client(
     client.name = name_normalized
     client.phone = phone
     client.email = email
+    client.telegram = telegram.strip() if telegram else None
     client.city = city
     client.notes = notes
     client.owner_partner_id = partner_id_int
