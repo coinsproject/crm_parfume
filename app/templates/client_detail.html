@@ -58,4 +58,33 @@
         </div>
     </div>
 </div>
+
+<script>
+// Функция для удаления клиента через AJAX
+async function deleteClient(clientId, clientName, redirectUrl) {
+    if (!confirm(`Удалить клиента ${clientName}?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/clients/${clientId}/delete`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showSuccess(data.message || 'Клиент успешно удален', redirectUrl);
+        } else {
+            showError(data.error || 'Ошибка при удалении клиента');
+        }
+    } catch (error) {
+        showError('Ошибка при удалении клиента: ' + error.message);
+    }
+}
+</script>
 {% endblock %}
