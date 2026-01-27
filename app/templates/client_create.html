@@ -31,6 +31,11 @@
                             <input type="email" class="form-control" id="email" name="email" value="{{ form.email if form.email is defined else '' }}">
                         </div>
                         <div class="mb-3">
+                            <label class="form-label" for="telegram">Telegram</label>
+                            <input type="text" class="form-control" id="telegram" name="telegram" placeholder="@username или +79991234567" value="{{ form.telegram if form.telegram is defined else '' }}">
+                            <div class="form-text">Ник в Telegram или номер телефона</div>
+                        </div>
+                        <div class="mb-3">
                             <label class="form-label" for="city">Город / населённый пункт</label>
                             <input type="text" class="form-control" id="city" name="city" value="{{ form.city if form.city is defined else '' }}">
                         </div>

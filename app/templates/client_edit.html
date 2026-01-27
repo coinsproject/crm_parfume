@@ -28,6 +28,11 @@
                             <input type="email" class="form-control" id="email" name="email" value="{{ (form.email if form and form.email is defined else None) or client.email or '' }}">
                         </div>
                         <div class="mb-3">
+                            <label class="form-label" for="telegram">Telegram</label>
+                            <input type="text" class="form-control" id="telegram" name="telegram" placeholder="@username или +79991234567" value="{{ (form.telegram if form and form.telegram is defined else None) or client.telegram or '' }}">
+                            <div class="form-text">Ник в Telegram или номер телефона</div>
+                        </div>
+                        <div class="mb-3">
                             <label class="form-label" for="city">Город / населённый пункт</label>
                             <input type="text" class="form-control" id="city" name="city" value="{{ (form.city if form and form.city is defined else None) or client.city or '' }}">
                         </div>
