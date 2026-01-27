@@ -22,6 +22,7 @@
             <p><strong>Фамилия:</strong> {{ client.last_name or '-' }}</p>
             <p><strong>Телефон:</strong> {{ client.phone or '-' }}</p>
             <p><strong>Email:</strong> {{ client.email or '-' }}</p>
+            <p><strong>Telegram:</strong> {{ client.telegram or '-' }}</p>
             <p><strong>Партнёр:</strong> {{ client.owner_partner.name if client.owner_partner else '-' }}</p>
             <p><strong>Доступ к каталогу:</strong>
                 {% if client.can_access_catalog %}<span class="badge bg-success">Да</span>{% else %}<span class="badge bg-secondary">Нет</span>{% endif %}
