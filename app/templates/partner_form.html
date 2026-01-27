@@ -68,21 +68,29 @@
                 <hr class="my-4">
                 <h5 class="mb-3">Финансовые условия</h5>
                 <div class="row g-3">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
+                        <label class="form-label">Надбавка на прайс, %</label>
+                        <input type="number" min="0" max="100" step="0.01" class="form-control {% if errors and errors.get('partner_price_markup_percent') %}is-invalid{% endif %}" name="partner_price_markup_percent" value="{{ (form.partner_price_markup_percent if form else None) or (partner.partner_price_markup_percent if partner and partner.partner_price_markup_percent is not none else 0) }}">
+                        {% if errors and errors.get('partner_price_markup_percent') %}<div class="invalid-feedback">{{ errors.get('partner_price_markup_percent') }}</div>{% endif %}
+                        <div class="form-text">Надбавка к price_1 для расчета price_2</div>
+                    </div>
+                    <div class="col-md-3">
                         <label class="form-label">Наценка админа, %</label>
                         <input type="number" min="0" max="100" step="0.01" class="form-control {% if errors and errors.get('admin_markup_percent') %}is-invalid{% endif %}" name="admin_markup_percent" value="{{ (form.admin_markup_percent if form else None) or (partner.admin_markup_percent if partner and partner.admin_markup_percent is not none else 0) }}">
                         {% if errors and errors.get('admin_markup_percent') %}<div class="invalid-feedback">{{ errors.get('admin_markup_percent') }}</div>{% endif %}
+                        <div class="form-text">Наценка админа для клиента</div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label">Макс. наценка партнёра, %</label>
                         <input type="number" min="0" max="100" step="0.01" class="form-control {% if errors and errors.get('max_partner_markup_percent') %}is-invalid{% endif %}" name="max_partner_markup_percent" value="{{ (form.max_partner_markup_percent if form else None) or (partner.max_partner_markup_percent if partner and partner.max_partner_markup_percent is not none else '') }}">
                         {% if errors and errors.get('max_partner_markup_percent') %}<div class="invalid-feedback">{{ errors.get('max_partner_markup_percent') }}</div>{% endif %}
                         <div class="form-text">Пусто = без ограничения</div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label">Наценка партнёра по умолчанию, %</label>
                         <input type="number" min="0" max="100" step="0.01" class="form-control {% if errors and errors.get('partner_default_markup_percent') %}is-invalid{% endif %}" name="partner_default_markup_percent" value="{{ (form.partner_default_markup_percent if form else None) or (partner.partner_default_markup_percent if partner and partner.partner_default_markup_percent is not none else 0) }}">
                         {% if errors and errors.get('partner_default_markup_percent') %}<div class="invalid-feedback">{{ errors.get('partner_default_markup_percent') }}</div>{% endif %}
+                        <div class="form-text">Наценка партнёра по умолчанию</div>
                     </div>
                     <div class="col-md-4 d-flex align-items-center">
                         <div class="form-check mt-3">
