@@ -423,9 +423,18 @@ async def delete_client(
     current_user: User = Depends(require_permission(["clients.view_all", "clients.view_own", "clients.create"])),
     db: Session = Depends(get_db)
 ):
+    from fastapi.responses import JSONResponse
+    
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
+        # Проверяем, это AJAX запрос?
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.headers.get("Accept") == "application/json":
+            return JSONResponse(
+                status_code=404,
+                content={"success": False, "error": "Клиент не найден"}
+            )
         raise HTTPException(status_code=404, detail="Клиент не найден")
+    
     _ensure_can_edit_client(client, current_user, db)
     
     # Проверяем наличие связанных заказов
@@ -433,9 +442,16 @@ async def delete_client(
     orders_count = db.query(Order).filter(Order.client_id == client_id).count()
     if orders_count > 0:
         auth_logger.warning(f"Попытка удаления клиента {client_id} с {orders_count} заказ(ами) пользователем {current_user.username}")
+        error_msg = f"Невозможно удалить клиента: у него есть {orders_count} заказ(ов). Сначала удалите или измените заказы."
+        # Проверяем, это AJAX запрос?
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.headers.get("Accept") == "application/json":
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"success": False, "error": error_msg}
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Невозможно удалить клиента: у него есть {orders_count} заказ(ов). Сначала удалите или измените заказы."
+            detail=error_msg
         )
     
     # Проверяем наличие связанных накруток партнера и удаляем их
@@ -447,9 +463,16 @@ async def delete_client(
         except Exception as e:
             auth_logger.error(f"Ошибка при удалении накруток партнера для клиента {client_id}: {str(e)}")
             db.rollback()
+            error_msg = f"Ошибка при удалении связанных данных: {str(e)}"
+            # Проверяем, это AJAX запрос?
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.headers.get("Accept") == "application/json":
+                return JSONResponse(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    content={"success": False, "error": error_msg}
+                )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Ошибка при удалении связанных данных: {str(e)}"
+                detail=error_msg
             )
     
     try:
@@ -459,9 +482,23 @@ async def delete_client(
     except Exception as e:
         db.rollback()
         auth_logger.error(f"Ошибка при удалении клиента {client_id}: {str(e)}", exc_info=True)
+        error_msg = "Ошибка при удалении клиента. Проверьте логи для деталей."
+        # Проверяем, это AJAX запрос?
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.headers.get("Accept") == "application/json":
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"success": False, "error": error_msg}
+            )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка при удалении клиента. Проверьте логи для деталей."
+            detail=error_msg
+        )
+    
+    # Проверяем, это AJAX запрос?
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.headers.get("Accept") == "application/json":
+        return JSONResponse(
+            status_code=200,
+            content={"success": True, "message": "Клиент успешно удален"}
         )
     
     return RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)

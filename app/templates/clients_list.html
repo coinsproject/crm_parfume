@@ -66,9 +66,7 @@
                                     <td>
                                         <div class="d-flex gap-2">
                                             <a class="btn btn-sm btn-primary" href="/clients/{{ client.id }}/edit">Редактировать</a>
-                                            <form method="post" action="/clients/{{ client.id }}/delete" onsubmit="return confirm('Удалить клиента {{ client.name }}?');">
-                                                <button type="submit" class="btn btn-sm btn-danger">Удалить</button>
-                                            </form>
+                                            <button type="button" class="btn btn-sm btn-danger" onclick="deleteClient({{ client.id }}, '{{ client.name|replace("'", "\\'") }}', '/clients')">Удалить</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -97,5 +95,32 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 });
+
+// Функция для удаления клиента через AJAX
+async function deleteClient(clientId, clientName, redirectUrl) {
+    if (!confirm(`Удалить клиента ${clientName}?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/clients/${clientId}/delete`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showSuccess(data.message || 'Клиент успешно удален', redirectUrl);
+        } else {
+            showError(data.error || 'Ошибка при удалении клиента');
+        }
+    } catch (error) {
+        showError('Ошибка при удалении клиента: ' + error.message);
+    }
+}
 </script>
 {% endblock %}

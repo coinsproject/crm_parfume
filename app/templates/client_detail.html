@@ -13,9 +13,7 @@
             <a href="/price/search?client_id={{ client.id }}" class="btn btn-outline-primary">Прайс для клиента</a>
             {% endif %}
             <a href="/clients/{{ client.id }}/edit" class="btn btn-primary">Редактировать</a>
-            <form method="post" action="/clients/{{ client.id }}/delete" onsubmit="return confirm('Удалить клиента {{ client.name }}?');">
-                <button type="submit" class="btn btn-danger">Удалить</button>
-            </form>
+            <button type="button" class="btn btn-danger" onclick="deleteClient({{ client.id }}, '{{ client.name|replace("'", "\\'") }}', '/clients')">Удалить</button>
         </div>
     </div>
     <div class="card">
