@@ -17,7 +17,7 @@ echo -e "${CYAN}╚════════════════════�
 
 # Получаем директорию скрипта
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd "$SCRIPT_DIR
+cd "$SCRIPT_DIR"
 
 # Определяем команду docker compose
 if command -v docker-compose &> /dev/null; then
