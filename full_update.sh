@@ -62,11 +62,22 @@ BACKUP_FILE="$BACKUP_DIR/crm_backup_full_update_$(date +%Y%m%d_%H%M%S).db"
 KEEP_BACKUPS=10
 
 if $DOCKER_COMPOSE ps 2>/dev/null | grep -q "crm.*Up"; then
+    # Пробуем несколько способов копирования
     if docker cp crm:/app/data/crm.db "$BACKUP_FILE" 2>/dev/null; then
         BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
         echo -e "${GREEN}✓ Резервная копия создана: $BACKUP_FILE (${BACKUP_SIZE})${NC}"
+    elif $DOCKER_COMPOSE exec -T crm test -f /app/data/crm.db 2>/dev/null; then
+        # Альтернативный способ через временный файл
+        $DOCKER_COMPOSE exec -T crm sh -c "cp /app/data/crm.db /tmp/crm_backup_temp.db" 2>/dev/null
+        if docker cp crm:/tmp/crm_backup_temp.db "$BACKUP_FILE" 2>/dev/null; then
+            $DOCKER_COMPOSE exec -T crm rm -f /tmp/crm_backup_temp.db 2>/dev/null
+            BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
+            echo -e "${GREEN}✓ Резервная копия создана: $BACKUP_FILE (${BACKUP_SIZE})${NC}"
+        else
+            echo -e "${YELLOW}⚠ Не удалось создать резервную копию, продолжаем...${NC}"
+        fi
     else
-        echo -e "${YELLOW}⚠ Не удалось создать резервную копию, продолжаем...${NC}"
+        echo -e "${YELLOW}⚠ База данных не найдена в контейнере, пропускаем бэкап${NC}"
     fi
 elif [ -f "./data/crm.db" ]; then
     if cp ./data/crm.db "$BACKUP_FILE" 2>/dev/null; then
@@ -242,7 +253,11 @@ echo -e "${GREEN}✓ Контейнер запущен${NC}"
 print_section "ШАГ 6: Анализ текущего состояния миграций"
 
 echo -e "${BLUE}Текущая версия миграций:${NC}"
-CURRENT_REVISION=$($DOCKER_COMPOSE exec -T crm alembic current 2>&1 | grep -oP '\(revision: \K[^)]+' || echo "не определена")
+ALEMBIC_OUTPUT=$($DOCKER_COMPOSE exec -T crm alembic current 2>&1)
+CURRENT_REVISION=$(echo "$ALEMBIC_OUTPUT" | grep -oP '\(revision: \K[^)]+' || echo "$ALEMBIC_OUTPUT" | grep -oE '[a-f0-9]{12,}' | head -1 || echo "не определена")
+if [ "$CURRENT_REVISION" = "не определена" ] && echo "$ALEMBIC_OUTPUT" | grep -q "head"; then
+    CURRENT_REVISION="head"
+fi
 echo -e "${YELLOW}  Ревизия: ${CURRENT_REVISION}${NC}"
 
 echo -e "\n${BLUE}Доступные миграции:${NC}"
@@ -265,9 +280,15 @@ else
     exit 1
 fi
 
-FINAL_REVISION=$($DOCKER_COMPOSE exec -T crm alembic current 2>&1 | grep -oP '\(revision: \K[^)]+' || echo "не определена")
-if [ "$CURRENT_REVISION" != "$FINAL_REVISION" ]; then
+ALEMBIC_FINAL_OUTPUT=$($DOCKER_COMPOSE exec -T crm alembic current 2>&1)
+FINAL_REVISION=$(echo "$ALEMBIC_FINAL_OUTPUT" | grep -oP '\(revision: \K[^)]+' || echo "$ALEMBIC_FINAL_OUTPUT" | grep -oE '[a-f0-9]{12,}' | head -1 || echo "не определена")
+if [ "$FINAL_REVISION" = "не определена" ] && echo "$ALEMBIC_FINAL_OUTPUT" | grep -q "head"; then
+    FINAL_REVISION="head"
+fi
+if [ "$CURRENT_REVISION" != "$FINAL_REVISION" ] && [ "$CURRENT_REVISION" != "не определена" ] && [ "$FINAL_REVISION" != "не определена" ]; then
     echo -e "${GREEN}✓ Миграции обновлены: ${CURRENT_REVISION} → ${FINAL_REVISION}${NC}"
+elif [ "$FINAL_REVISION" != "не определена" ]; then
+    echo -e "${BLUE}Миграции на версии: ${FINAL_REVISION}${NC}"
 else
     echo -e "${BLUE}Миграции уже на последней версии${NC}"
 fi
