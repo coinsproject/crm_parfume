@@ -324,8 +324,11 @@ async def update_partner(
     max_partner_markup = _parse_pct(max_partner_markup_percent, "max_partner_markup_percent")
     partner_default_markup = _parse_pct(partner_default_markup_percent, "partner_default_markup_percent")
 
+    # Если поле пустое, сохраняем текущее значение, а не сбрасываем в 0
     if partner_price_markup is None:
-        partner_price_markup = getattr(partner, 'partner_price_markup_percent', None) or Decimal("0.00")
+        partner_price_markup = getattr(partner, 'partner_price_markup_percent', None)
+        if partner_price_markup is None:
+            partner_price_markup = Decimal("0.00")
     if admin_markup is None:
         admin_markup = partner.admin_markup_percent or Decimal("0.00")
     if partner_default_markup is None:
