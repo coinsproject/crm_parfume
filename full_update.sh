@@ -86,25 +86,32 @@ if [ -d "$BACKUP_DIR" ]; then
     
     if [ "$TOTAL_BACKUPS" -gt "$KEEP_BACKUPS" ]; then
         # Сортируем по времени модификации (новые первыми) и удаляем старые
-        OLD_BACKUPS=$(find "$BACKUP_DIR" -name "crm_backup*.db" -type f -printf '%T@ %p\n' | \
-                      sort -rn | tail -n +$((KEEP_BACKUPS + 1)) | cut -d' ' -f2-)
+        # Используем ls -t для сортировки по времени (более совместимо)
+        OLD_BACKUPS=$(ls -t "$BACKUP_DIR"/crm_backup*.db 2>/dev/null | tail -n +$((KEEP_BACKUPS + 1)))
         
         DELETED_COUNT=0
         TOTAL_SIZE_FREED=0
         
-        for old_backup in $OLD_BACKUPS; do
-            if [ -f "$old_backup" ]; then
-                SIZE=$(du -b "$old_backup" | cut -f1)
-                TOTAL_SIZE_FREED=$((TOTAL_SIZE_FREED + SIZE))
-                rm -f "$old_backup"
-                DELETED_COUNT=$((DELETED_COUNT + 1))
-                echo -e "${YELLOW}  Удален: $(basename "$old_backup")${NC}"
-            fi
-        done
+        if [ -n "$OLD_BACKUPS" ]; then
+            echo "$OLD_BACKUPS" | while read -r old_backup; do
+                if [ -f "$old_backup" ]; then
+                    SIZE=$(stat -f%z "$old_backup" 2>/dev/null || stat -c%s "$old_backup" 2>/dev/null || du -b "$old_backup" | cut -f1)
+                    TOTAL_SIZE_FREED=$((TOTAL_SIZE_FREED + SIZE))
+                    rm -f "$old_backup"
+                    DELETED_COUNT=$((DELETED_COUNT + 1))
+                    echo -e "${YELLOW}  Удален: $(basename "$old_backup")${NC}"
+                fi
+            done
+        fi
         
         if [ "$DELETED_COUNT" -gt 0 ]; then
-            SIZE_FREED_MB=$(echo "scale=2; $TOTAL_SIZE_FREED / 1024 / 1024" | bc)
-            echo -e "${GREEN}✓ Удалено старых копий: ${DELETED_COUNT} (освобождено ~${SIZE_FREED_MB} MB)${NC}"
+            # Вычисляем размер в MB (без bc для совместимости)
+            SIZE_FREED_MB=$((TOTAL_SIZE_FREED / 1024 / 1024))
+            if [ "$SIZE_FREED_MB" -gt 0 ]; then
+                echo -e "${GREEN}✓ Удалено старых копий: ${DELETED_COUNT} (освобождено ~${SIZE_FREED_MB} MB)${NC}"
+            else
+                echo -e "${GREEN}✓ Удалено старых копий: ${DELETED_COUNT}${NC}"
+            fi
         else
             echo -e "${BLUE}Нет старых копий для удаления${NC}"
         fi
