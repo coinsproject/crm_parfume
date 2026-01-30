@@ -35,11 +35,27 @@ if [ ! -f "fix_permissions.py" ]; then
     exit 1
 fi
 
-# Копируем скрипт в контейнер (если нужно) или запускаем напрямую
+# Копируем скрипт в контейнер
+echo -e "${BLUE}Копирование скрипта в контейнер...${NC}"
+if docker cp fix_permissions.py crm:/app/fix_permissions.py 2>/dev/null; then
+    echo -e "${GREEN}✓ Скрипт скопирован${NC}"
+else
+    # Пробуем через docker-compose exec
+    if $DOCKER_COMPOSE exec -T crm sh -c "cat > /app/fix_permissions.py" < fix_permissions.py 2>/dev/null; then
+        echo -e "${GREEN}✓ Скрипт скопирован${NC}"
+    else
+        echo -e "${RED}✗ Не удалось скопировать скрипт в контейнер${NC}"
+        exit 1
+    fi
+fi
+
+# Запускаем скрипт
 echo -e "${BLUE}Запуск скрипта исправления прав...${NC}\n"
 
 if $DOCKER_COMPOSE exec -T crm python fix_permissions.py; then
     echo -e "\n${GREEN}✓ Скрипт выполнен успешно${NC}"
+    # Удаляем временный файл из контейнера (опционально)
+    $DOCKER_COMPOSE exec -T crm rm -f /app/fix_permissions.py 2>/dev/null || true
 else
     echo -e "\n${RED}✗ Ошибка при выполнении скрипта${NC}"
     exit 1
