@@ -58,6 +58,9 @@ BACKUP_DIR="./backups"
 mkdir -p "$BACKUP_DIR"
 BACKUP_FILE="$BACKUP_DIR/crm_backup_full_update_$(date +%Y%m%d_%H%M%S).db"
 
+# Количество резервных копий для хранения (остальные будут удалены)
+KEEP_BACKUPS=10
+
 if $DOCKER_COMPOSE ps 2>/dev/null | grep -q "crm.*Up"; then
     if docker cp crm:/app/data/crm.db "$BACKUP_FILE" 2>/dev/null; then
         BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
@@ -74,6 +77,40 @@ elif [ -f "./data/crm.db" ]; then
     fi
 else
     echo -e "${YELLOW}⚠ База данных не найдена, пропускаем бэкап${NC}"
+fi
+
+# Удаление старых резервных копий
+if [ -d "$BACKUP_DIR" ]; then
+    echo -e "${BLUE}Очистка старых резервных копий (оставляем последние ${KEEP_BACKUPS})...${NC}"
+    TOTAL_BACKUPS=$(find "$BACKUP_DIR" -name "crm_backup*.db" -type f | wc -l)
+    
+    if [ "$TOTAL_BACKUPS" -gt "$KEEP_BACKUPS" ]; then
+        # Сортируем по времени модификации (новые первыми) и удаляем старые
+        OLD_BACKUPS=$(find "$BACKUP_DIR" -name "crm_backup*.db" -type f -printf '%T@ %p\n' | \
+                      sort -rn | tail -n +$((KEEP_BACKUPS + 1)) | cut -d' ' -f2-)
+        
+        DELETED_COUNT=0
+        TOTAL_SIZE_FREED=0
+        
+        for old_backup in $OLD_BACKUPS; do
+            if [ -f "$old_backup" ]; then
+                SIZE=$(du -b "$old_backup" | cut -f1)
+                TOTAL_SIZE_FREED=$((TOTAL_SIZE_FREED + SIZE))
+                rm -f "$old_backup"
+                DELETED_COUNT=$((DELETED_COUNT + 1))
+                echo -e "${YELLOW}  Удален: $(basename "$old_backup")${NC}"
+            fi
+        done
+        
+        if [ "$DELETED_COUNT" -gt 0 ]; then
+            SIZE_FREED_MB=$(echo "scale=2; $TOTAL_SIZE_FREED / 1024 / 1024" | bc)
+            echo -e "${GREEN}✓ Удалено старых копий: ${DELETED_COUNT} (освобождено ~${SIZE_FREED_MB} MB)${NC}"
+        else
+            echo -e "${BLUE}Нет старых копий для удаления${NC}"
+        fi
+    else
+        echo -e "${BLUE}Количество копий в норме (${TOTAL_BACKUPS}/${KEEP_BACKUPS}), удаление не требуется${NC}"
+    fi
 fi
 
 # ============================================================================
