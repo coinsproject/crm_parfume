@@ -293,6 +293,40 @@ else
     echo -e "${BLUE}Миграции уже на последней версии${NC}"
 fi
 
+# Перезапуск контейнера после миграций для применения изменений
+echo -e "\n${BLUE}Перезапуск контейнера после миграций...${NC}"
+$DOCKER_COMPOSE restart crm || {
+    echo -e "${YELLOW}⚠ Не удалось перезапустить через restart, пробуем stop/start...${NC}"
+    $DOCKER_COMPOSE stop crm 2>/dev/null || true
+    sleep 2
+    $DOCKER_COMPOSE start crm || {
+        echo -e "${RED}✗ Ошибка при перезапуске контейнера${NC}"
+        echo -e "${YELLOW}Проверьте логи: $DOCKER_COMPOSE logs --tail=50 crm${NC}"
+    }
+}
+sleep 5
+
+# Проверка логов на ошибки
+echo -e "${BLUE}Проверка логов контейнера на ошибки...${NC}"
+LOG_ERRORS=$($DOCKER_COMPOSE logs --tail=100 crm 2>&1 | grep -iE "(error|exception|traceback|failed|fatal)" | head -20 || true)
+if [ -n "$LOG_ERRORS" ]; then
+    echo -e "${YELLOW}⚠ Обнаружены ошибки в логах:${NC}"
+    echo "$LOG_ERRORS" | while IFS= read -r line; do
+        echo -e "${YELLOW}  $line${NC}"
+    done
+    echo -e "${YELLOW}Полные логи: $DOCKER_COMPOSE logs --tail=100 crm${NC}"
+else
+    echo -e "${GREEN}✓ Критических ошибок в логах не обнаружено${NC}"
+fi
+
+# Проверка статуса контейнера
+if ! $DOCKER_COMPOSE ps 2>/dev/null | grep -q "crm.*Up"; then
+    echo -e "${RED}✗ Контейнер не запущен после миграций!${NC}"
+    echo -e "${YELLOW}Последние 50 строк логов:${NC}"
+    $DOCKER_COMPOSE logs --tail=50 crm
+    exit 1
+fi
+
 # ============================================================================
 # ШАГ 8: Исправление прав в базе данных
 # ============================================================================
@@ -350,10 +384,25 @@ print_section "ШАГ 10: Проверка работоспособности п
 echo -e "${BLUE}Ожидание готовности приложения...${NC}"
 sleep 3
 
-MAX_RETRIES=10
+# Проверка статуса контейнера
+CONTAINER_STATUS=$($DOCKER_COMPOSE ps crm 2>/dev/null | grep -E "crm.*Up" || echo "")
+if [ -z "$CONTAINER_STATUS" ]; then
+    echo -e "${RED}✗ Контейнер не запущен!${NC}"
+    echo -e "${YELLOW}Статус контейнера:${NC}"
+    $DOCKER_COMPOSE ps crm
+    echo -e "\n${YELLOW}Последние 100 строк логов:${NC}"
+    $DOCKER_COMPOSE logs --tail=100 crm
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Контейнер запущен${NC}"
+
+# Проверка health check
+MAX_RETRIES=15
 RETRY_COUNT=0
 HEALTH_CHECK_PASSED=false
 
+echo -e "${BLUE}Проверка health check приложения...${NC}"
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     if curl -f -s http://localhost:8000/health > /dev/null 2>&1; then
         HEALTH_CHECK_PASSED=true
@@ -361,11 +410,23 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     fi
     RETRY_COUNT=$((RETRY_COUNT + 1))
     echo -e "${YELLOW}  Попытка $RETRY_COUNT/$MAX_RETRIES...${NC}"
-    sleep 2
+    sleep 3
 done
 
 if [ "$HEALTH_CHECK_PASSED" = true ]; then
     echo -e "${GREEN}✓ Приложение работает корректно${NC}"
+    
+    # Финальная проверка логов на критические ошибки
+    echo -e "${BLUE}Финальная проверка логов...${NC}"
+    RECENT_ERRORS=$($DOCKER_COMPOSE logs --tail=50 crm --since 2m 2>&1 | grep -iE "(error|exception|traceback|failed|fatal)" | head -10 || true)
+    if [ -n "$RECENT_ERRORS" ]; then
+        echo -e "${YELLOW}⚠ Обнаружены недавние ошибки в логах:${NC}"
+        echo "$RECENT_ERRORS" | while IFS= read -r line; do
+            echo -e "${YELLOW}  $line${NC}"
+        done
+    else
+        echo -e "${GREEN}✓ Критических ошибок не обнаружено${NC}"
+    fi
     
     # Получаем информацию о версии
     CURRENT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "неизвестно")
@@ -383,10 +444,33 @@ if [ "$HEALTH_CHECK_PASSED" = true ]; then
     echo -e "${CYAN}════════════════════════════════════════════════════════════${NC}\n"
 else
     echo -e "${RED}✗ Приложение не отвечает на health check!${NC}"
-    echo -e "${YELLOW}Проверьте логи: $DOCKER_COMPOSE logs --tail=50 crm${NC}"
+    echo -e "\n${YELLOW}=== Диагностика проблемы ===${NC}"
+    
+    # Проверка статуса контейнера
+    echo -e "${BLUE}Статус контейнера:${NC}"
+    $DOCKER_COMPOSE ps crm
+    
+    # Проверка использования ресурсов
+    echo -e "\n${BLUE}Использование ресурсов:${NC}"
+    docker stats --no-stream crm 2>/dev/null || echo "Не удалось получить статистику"
+    
+    # Последние логи
+    echo -e "\n${BLUE}Последние 100 строк логов:${NC}"
+    $DOCKER_COMPOSE logs --tail=100 crm
+    
+    # Проверка портов
+    echo -e "\n${BLUE}Проверка портов:${NC}"
+    netstat -tlnp 2>/dev/null | grep 8000 || ss -tlnp 2>/dev/null | grep 8000 || echo "Порт 8000 не прослушивается"
+    
     if [ -f "$BACKUP_FILE" ]; then
-        echo -e "${YELLOW}Резервная копия сохранена: $BACKUP_FILE${NC}"
+        echo -e "\n${YELLOW}Резервная копия сохранена: $BACKUP_FILE${NC}"
+        echo -e "${YELLOW}Для восстановления: docker cp $BACKUP_FILE crm:/app/data/crm.db${NC}"
     fi
+    
+    echo -e "\n${YELLOW}Попробуйте перезапустить вручную:${NC}"
+    echo -e "${YELLOW}  $DOCKER_COMPOSE restart crm${NC}"
+    echo -e "${YELLOW}  $DOCKER_COMPOSE logs -f crm${NC}"
+    
     exit 1
 fi
 
