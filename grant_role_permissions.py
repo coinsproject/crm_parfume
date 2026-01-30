@@ -6,45 +6,23 @@ import sys
 from app.db import SessionLocal
 from app.models import Role, Permission, RolePermission
 
-# Определяем права для каждой роли
+# Определяем права для каждой роли (согласно локальной версии)
 ROLE_PERMISSIONS = {
     "MANAGER": [
-        "dashboard.view",
-        "clients.view_all",
-        "clients.create",
-        "orders.view_all",
-        "orders.create",
-        "partners.view_all",
-        "catalog.view_full",
-        "catalog.manage",
-        "prices.view_client",
-        "prices.view_cost",
-        "prices.view_margin",
-        "prices.edit",
-        "price.upload",
-        "price.search",
+        "price.search",  # Только поиск по прайсу (как в локальной версии)
     ],
     "PARTNER": [
-        "dashboard.view",
         "clients.view_own",
         "clients.create",
         "orders.view_own",
         "orders.create",
-        "partners.view_own",
-        "catalog.view_client",
         "prices.view_client",
         "prices.view_cost",
         "prices.view_margin",
         "price.search",
     ],
     "VIEWER": [
-        "dashboard.view",
-        "clients.view_all",
-        "orders.view_all",
-        "partners.view_all",
-        "catalog.view_full",
-        "prices.view_client",
-        "price.search",
+        # Нет прав (как в локальной версии)
     ],
 }
 
@@ -52,9 +30,27 @@ def grant_role_permissions():
     db = SessionLocal()
     try:
         print("=" * 70)
-        print("ДОБАВЛЕНИЕ ПРАВ ДЛЯ РОЛЕЙ")
+        print("СИНХРОНИЗАЦИЯ РОЛЕЙ С ЛОКАЛЬНОЙ ВЕРСИЕЙ")
         print("=" * 70)
         print()
+        
+        # Сначала делаем роли несистемными (как в локальной версии)
+        print("1. УСТАНОВКА is_system = False для MANAGER, PARTNER, VIEWER:")
+        print("-" * 70)
+        for role_name in ['MANAGER', 'PARTNER', 'VIEWER']:
+            role = db.query(Role).filter(Role.name == role_name).first()
+            if role:
+                if role.is_system:
+                    role.is_system = False
+                    print(f"  ✓ Роль {role_name}: is_system установлен в False")
+                else:
+                    print(f"  ✓ Роль {role_name}: уже несистемная")
+        db.commit()
+        print()
+        
+        # Теперь добавляем права согласно локальной версии
+        print("2. ДОБАВЛЕНИЕ ПРАВ ДЛЯ РОЛЕЙ:")
+        print("-" * 70)
         
         for role_name, permission_keys in ROLE_PERMISSIONS.items():
             role = db.query(Role).filter(Role.name == role_name).first()
