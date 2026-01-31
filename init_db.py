@@ -33,10 +33,10 @@ def init_roles_and_admin():
 
         if db.query(Role).count() == 0:
             roles = [
-                {'name': 'ADMIN', 'description': 'System administrator', 'is_system': True},
-                {'name': 'MANAGER', 'description': 'Manager role', 'is_system': True},
-                {'name': 'PARTNER', 'description': 'Partner role', 'is_system': True},
-                {'name': 'VIEWER', 'description': 'Viewer role', 'is_system': True},
+                {'name': 'ADMIN', 'description': 'Системная роль администратора', 'is_system': True},
+                {'name': 'MANAGER', 'description': 'Менеджер', 'is_system': False},
+                {'name': 'PARTNER', 'description': 'Партнёр', 'is_system': False},
+                {'name': 'VIEWER', 'description': 'Просмотр', 'is_system': False},
             ]
             for role_data in roles:
                 db.add(Role(**role_data))
