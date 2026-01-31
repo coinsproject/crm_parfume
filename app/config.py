@@ -30,6 +30,18 @@ class Settings(BaseSettings):
     TWO_FA_BLOCK_MINUTES: int = 5  # Время блокировки при превышении лимита 2FA (в минутах)
     RATE_LIMIT_WINDOW_SECONDS: int = 60  # Окно ограничения в секундах
     RATE_LIMIT_MAX_REQUESTS: int = 100  # Максимальное количество запросов в окне
+    
+    # Настройки Email уведомлений
+    SMTP_ENABLED: bool = False
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    
+    # Настройки Telegram уведомлений
+    TELEGRAM_BOT_TOKEN: str = ""
+    TELEGRAM_ADMIN_CHAT_IDS: str = ""  # Через запятую: "123456789,987654321"
 
 
 settings = Settings()

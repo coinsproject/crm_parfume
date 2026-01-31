@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, Tuple
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Form
+from fastapi import APIRouter, Depends, HTTPException, Request, Form, BackgroundTasks
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -70,6 +70,7 @@ async def accept_invitation(
     partner_full_name: Optional[str] = Form(None),
     partner_phone: Optional[str] = Form(None),
     partner_telegram: Optional[str] = Form(None),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db)
 ):
     """Создание пользователя по приглашению с ожиданием активации администратором."""
@@ -177,6 +178,78 @@ async def accept_invitation(
             db.add(notification)
     
     db.commit()
+    
+    # Отправляем email и Telegram уведомления администраторам в фоновом режиме
+    def send_notifications():
+        """Функция для отправки уведомлений в фоновом режиме"""
+        try:
+            from app.services.email_service import email_service
+            from app.services.telegram_service import telegram_service
+            import asyncio
+            
+            # Подготовка данных для уведомлений
+            activation_url = "http://194.87.27.103:8000/settings/users"
+            
+            # Email уведомления
+            email_subject = f"Новый {user_type} ожидает активации"
+            email_body = f"""Здравствуйте!
+
+Новый {user_type} зарегистрировался в системе и ожидает активации:
+
+Имя пользователя: {final_username}
+Email: {email}
+{f'Партнёр: {partner_info}' if partner_info else ''}
+
+Пожалуйста, активируйте пользователя в разделе "Настройки" → "Пользователи".
+
+Ссылка: {activation_url}
+
+---
+Это автоматическое уведомление от Parfume CRM.
+"""
+            
+            email_html_body = f"""<html>
+<body>
+    <h2>Новый {user_type} ожидает активации</h2>
+    <p>Новый {user_type} зарегистрировался в системе и ожидает активации:</p>
+    <ul>
+        <li><strong>Имя пользователя:</strong> {final_username}</li>
+        <li><strong>Email:</strong> {email}</li>
+        {f'<li><strong>Партнёр:</strong> {partner_info}</li>' if partner_info else ''}
+    </ul>
+    <p><a href="{activation_url}">Активировать пользователя</a></p>
+    <hr>
+    <p><small>Это автоматическое уведомление от Parfume CRM.</small></p>
+</body>
+</html>"""
+            
+            # Telegram уведомления
+            telegram_message = f"""🔔 <b>Новый {user_type} ожидает активации</b>
+
+👤 <b>Имя:</b> {final_username}
+📧 <b>Email:</b> {email}
+{f'🤝 <b>Партнёр:</b> {partner_info}' if partner_info else ''}
+
+🔗 <a href="{activation_url}">Активировать пользователя</a>"""
+            
+            # Отправка email всем администраторам
+            for admin in admin_users:
+                if admin.email:
+                    asyncio.run(email_service.send_email(
+                        to_email=admin.email,
+                        subject=email_subject,
+                        body=email_body,
+                        html_body=email_html_body
+                    ))
+            
+            # Отправка Telegram уведомления всем администраторам
+            asyncio.run(telegram_service.notify_admins(telegram_message))
+        except Exception as e:
+            # Логируем ошибку, но не прерываем процесс регистрации
+            auth_logger.error(f"Failed to send email/telegram notifications: {e}", exc_info=True)
+    
+    # Добавляем задачу в фоновые задачи
+    background_tasks.add_task(send_notifications)
     
     auth_logger.info(f"Invitation {invitation.id} accepted by {final_username}")
 
