@@ -402,6 +402,32 @@ finally:
 " 2>/dev/null || echo -e "${YELLOW}  Не удалось проверить роли${NC}"
 
 # ============================================================================
+# ШАГ 9.5: Проверка и настройка UFW (firewall)
+# ============================================================================
+print_section "ШАГ 9.5: Проверка UFW (firewall)"
+
+if command -v ufw &> /dev/null; then
+    UFW_STATUS=$(sudo ufw status 2>/dev/null | head -1 || echo "inactive")
+    if echo "$UFW_STATUS" | grep -qi "active"; then
+        echo -e "${BLUE}UFW активен, проверяем порт 8000...${NC}"
+        if sudo ufw status | grep -q "8000/tcp"; then
+            echo -e "${GREEN}✓ Порт 8000 уже открыт в UFW${NC}"
+        else
+            echo -e "${YELLOW}Порт 8000 не открыт, открываем...${NC}"
+            if sudo ufw allow 8000/tcp 2>/dev/null; then
+                echo -e "${GREEN}✓ Порт 8000 открыт в UFW${NC}"
+            else
+                echo -e "${YELLOW}⚠ Не удалось открыть порт 8000 в UFW (продолжаем)${NC}"
+            fi
+        fi
+    else
+        echo -e "${BLUE}UFW не активен, пропускаем${NC}"
+    fi
+else
+    echo -e "${BLUE}UFW не установлен, пропускаем${NC}"
+fi
+
+# ============================================================================
 # ШАГ 10: Проверка работоспособности
 # ============================================================================
 print_section "ШАГ 10: Проверка работоспособности приложения"
