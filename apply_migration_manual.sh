@@ -54,3 +54,5 @@ echo ""
 echo "=== Готово ==="
 echo "Проверьте логи: sudo docker logs parfume-crm --tail=50"
 
+
+

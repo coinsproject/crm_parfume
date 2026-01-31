@@ -100,3 +100,5 @@ echo ""
 echo "Затем примените недостающие миграции:"
 echo "  sudo docker-compose exec crm alembic upgrade head"
 
+
+

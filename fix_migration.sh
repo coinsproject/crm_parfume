@@ -39,3 +39,5 @@ print('max_partner_views:', 'max_partner_views' in cols)
 echo ""
 echo "=== Готово ==="
 
+
+

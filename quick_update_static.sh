@@ -47,3 +47,5 @@ echo "  - Safari: Cmd+Option+R (Mac)"
 echo ""
 echo "Или откройте в режиме инкогнито для проверки"
 
+
+
