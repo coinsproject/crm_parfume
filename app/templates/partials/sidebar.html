@@ -87,15 +87,21 @@
       </a>
     </li>
     <li class="nav-item">
-      <a class="nav-link d-flex justify-content-between align-items-center {% if active_menu in ['settings_roles','settings_users','settings_security','settings_docs','admin_catalog'] %}active{% endif %}"
+      <a class="nav-link d-flex justify-content-between align-items-center {% if active_menu in ['settings_roles','settings_users','settings_security','settings_docs','settings_profile','admin_catalog'] %}active{% endif %}"
          data-bs-toggle="collapse" href="#settingsMenu" role="button"
-         aria-expanded="{% if active_menu in ['settings_roles','settings_users','settings_security','settings_docs','admin_catalog'] %}true{% else %}false{% endif %}"
+         aria-expanded="{% if active_menu in ['settings_roles','settings_users','settings_security','settings_docs','settings_profile','admin_catalog'] %}true{% else %}false{% endif %}"
          aria-controls="settingsMenu">
         <span class="d-flex align-items-center"><i class="nav-icon fas fa-cog me-2"></i><span>Настройки</span></span>
         <i class="fas fa-chevron-down small"></i>
       </a>
-      <div class="collapse {% if active_menu in ['settings_roles','settings_users','settings_security','settings_docs','admin_catalog'] %}show{% endif %}" id="settingsMenu">
+      <div class="collapse {% if active_menu in ['settings_roles','settings_users','settings_security','settings_docs','settings_profile','admin_catalog'] %}show{% endif %}" id="settingsMenu">
         <ul class="nav flex-column ms-3 mt-1">
+          <li class="nav-item">
+            <a class="nav-link {% if active_menu == 'settings_profile' %}active{% endif %}" href="/settings/profile">
+              <i class="nav-icon fas fa-user me-2"></i>
+              <span>Мой профиль</span>
+            </a>
+          </li>
           <li class="nav-item">
             <a class="nav-link {% if active_menu == 'settings_roles' %}active{% endif %}" href="/settings/roles">
               <i class="nav-icon fas fa-key me-2"></i>
