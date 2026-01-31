@@ -152,6 +152,11 @@ REMOTE=$(git rev-parse @{u} 2>/dev/null || echo "")
 
 if [ -z "$LOCAL" ] || [ -z "$REMOTE" ]; then
     echo -e "${YELLOW}Не удалось определить версии, продолжаем обновление...${NC}"
+    # Сохраняем локальные изменения перед обновлением
+    if [ -n "$(git status --porcelain)" ]; then
+        echo -e "${YELLOW}Обнаружены локальные изменения, сохраняем их...${NC}"
+        git stash push -m "Auto-stash before update $(date +%Y%m%d_%H%M%S)" 2>/dev/null || true
+    fi
     git pull origin main || {
         echo -e "${RED}✗ Ошибка при обновлении кода${NC}"
         exit 1
@@ -173,6 +178,16 @@ elif [ "$LOCAL" = "$REMOTE" ]; then
 else
     echo -e "${BLUE}Локальная версия: ${LOCAL:0:7}${NC}"
     echo -e "${BLUE}Удаленная версия: ${REMOTE:0:7}${NC}"
+    
+    # Проверяем наличие локальных изменений перед pull
+    if [ -n "$(git status --porcelain)" ]; then
+        echo -e "${YELLOW}Обнаружены локальные изменения, сохраняем их перед обновлением...${NC}"
+        git stash push -m "Auto-stash before update $(date +%Y%m%d_%H%M%S)" 2>/dev/null || {
+            echo -e "${YELLOW}Не удалось сохранить изменения, сбрасываем локальные изменения...${NC}"
+            git reset --hard HEAD 2>/dev/null || true
+        }
+    fi
+    
     git pull origin main || {
         echo -e "${RED}✗ Ошибка при обновлении кода${NC}"
         exit 1
