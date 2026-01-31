@@ -1,0 +1,123 @@
+{% extends "layout.html" %}
+
+{% block title %}Мой профиль - Parfume CRM{% endblock %}
+
+{% block page_title %}Мой профиль{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">Мои данные</h3>
+                </div>
+                <div class="card-body">
+                    {% if profile_status == 'ok' %}
+                        <div class="alert alert-success">Профиль успешно обновлён</div>
+                    {% elif profile_status == 'email_exists' %}
+                        <div class="alert alert-danger">Email уже используется другим пользователем</div>
+                    {% endif %}
+                    
+                    <form method="post" action="/settings/profile/update" class="row g-3">
+                        <div class="col-md-6">
+                            <label for="username" class="form-label">Логин</label>
+                            <input type="text" class="form-control" id="username" value="{{ current_user.username }}" readonly>
+                            <div class="form-text">Логин нельзя изменить</div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="full_name" class="form-label">Имя</label>
+                            <input type="text" class="form-control" id="full_name" name="full_name" value="{{ current_user.full_name or '' }}" placeholder="Иванов Иван Иванович">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" value="{{ current_user.email or '' }}" placeholder="your-email@example.com">
+                            <div class="form-text">Используется для уведомлений и восстановления доступа</div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Роль</label>
+                            <input type="text" class="form-control" value="{{ current_user.role.name if current_user.role else 'ADMIN' }}" readonly>
+                        </div>
+                        
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">Сменить пароль</h3>
+                </div>
+                <div class="card-body">
+                    {% if password_status == 'ok' %}
+                        <div class="alert alert-success">Пароль успешно изменён</div>
+                    {% elif password_status == 'bad_old' %}
+                        <div class="alert alert-danger">Текущий пароль неверный</div>
+                    {% elif password_status == 'bad_new' %}
+                        <div class="alert alert-danger">Новый пароль должен быть минимум 6 символов</div>
+                    {% elif password_status == 'bad_confirm' %}
+                        <div class="alert alert-danger">Пароли не совпадают</div>
+                    {% endif %}
+                    
+                    <form method="post" action="/settings/profile/change_password" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="current_password" class="form-label">Текущий пароль *</label>
+                            <input type="password" class="form-control" id="current_password" name="current_password" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="new_password" class="form-label">Новый пароль *</label>
+                            <input type="password" class="form-control" id="new_password" name="new_password" required minlength="6">
+                            <div class="form-text">Минимум 6 символов</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="new_password_confirm" class="form-label">Повторите пароль *</label>
+                            <input type="password" class="form-control" id="new_password_confirm" name="new_password_confirm" required minlength="6">
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">Изменить пароль</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Быстрые ссылки</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <a href="/settings/users" class="text-decoration-none">
+                                <i class="fas fa-users me-2"></i>Управление пользователями
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="/settings/roles" class="text-decoration-none">
+                                <i class="fas fa-key me-2"></i>Роли и права
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="/settings/security" class="text-decoration-none">
+                                <i class="fas fa-shield-alt me-2"></i>Безопасность
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="/settings/docs" class="text-decoration-none">
+                                <i class="fas fa-book me-2"></i>Документация
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

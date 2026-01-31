@@ -12,6 +12,11 @@
             <span class="d-none d-lg-inline">Профиль</span>
             <i class="fas fa-user d-lg-none"></i>
           </a>
+          {% elif current_user.role and current_user.role.name == 'ADMIN' %}
+          <a class="btn btn-outline-secondary btn-sm d-none d-md-inline-flex" href="/settings/profile">
+            <span class="d-none d-lg-inline">Профиль</span>
+            <i class="fas fa-user d-lg-none"></i>
+          </a>
           {% endif %}
           <a href="/notifications" class="btn btn-outline-secondary btn-sm position-relative" title="Уведомления" aria-label="Уведомления">
             <i class="fas fa-bell"></i>

@@ -8,7 +8,7 @@ import secrets
 
 from app.db import get_db
 from app.models import User, Role, Partner, Permission, RolePermission
-from app.services.auth_service import require_roles, hash_password
+from app.services.auth_service import require_roles, hash_password, verify_password
 from app.services.invitation_service import create_invitation
 from app.logging_config import auth_logger
 
@@ -504,6 +504,85 @@ async def create_invitation_endpoint(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ошибка при создании приглашения: {str(e)}"
         )
+
+
+@router.get("/profile", response_class=HTMLResponse)
+async def get_admin_profile(
+    request: Request,
+    current_user: User = Depends(require_roles(["ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    """Страница профиля администратора"""
+    profile_status = request.query_params.get("profile")
+    password_status = request.query_params.get("pw")
+    
+    return templates.TemplateResponse("admin_profile.html", {
+        "request": request,
+        "current_user": current_user,
+        "active_menu": "settings_profile",
+        "profile_status": profile_status,
+        "password_status": password_status
+    })
+
+
+@router.post("/profile/update", response_class=RedirectResponse)
+async def update_admin_profile(
+    request: Request,
+    full_name: Optional[str] = Form(None),
+    email: Optional[str] = Form(None),
+    current_user: User = Depends(require_roles(["ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    """Обновление профиля администратора"""
+    # Проверяем email на уникальность
+    if email:
+        existing_email_user = db.query(User).filter(
+            User.email == email,
+            User.id != current_user.id
+        ).first()
+        if existing_email_user:
+            return RedirectResponse(url="/settings/profile?profile=email_exists", status_code=303)
+    
+    # Обновляем данные
+    current_user.full_name = full_name if full_name else None
+    current_user.email = email if email else None
+    
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    
+    return RedirectResponse(url="/settings/profile?profile=ok", status_code=303)
+
+
+@router.post("/profile/change_password", response_class=RedirectResponse)
+async def change_admin_password(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    new_password_confirm: str = Form(...),
+    current_user: User = Depends(require_roles(["ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    """Смена пароля администратора"""
+    # Проверяем текущий пароль
+    if not verify_password(current_password, current_user.password_hash or ""):
+        return RedirectResponse(url="/settings/profile?pw=bad_old", status_code=303)
+    
+    # Проверяем новый пароль
+    if not new_password or len(new_password) < 6:
+        return RedirectResponse(url="/settings/profile?pw=bad_new", status_code=303)
+    
+    # Проверяем совпадение паролей
+    if new_password != new_password_confirm:
+        return RedirectResponse(url="/settings/profile?pw=bad_confirm", status_code=303)
+    
+    # Обновляем пароль
+    current_user.password_hash = hash_password(new_password)
+    db.add(current_user)
+    db.commit()
+    
+    auth_logger.info(f"Admin {current_user.username} changed password")
+    return RedirectResponse(url="/settings/profile?pw=ok", status_code=303)
 
 
 @router.get("/roles", response_class=HTMLResponse)
