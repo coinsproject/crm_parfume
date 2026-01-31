@@ -283,6 +283,62 @@ const inviteForm = document.getElementById('createInviteForm');
 const inviteMessage = document.getElementById('inviteMessage');
 const inviteLinkInput = document.getElementById('inviteLink');
 const inviteLinkBlock = document.getElementById('inviteLinkBlock');
+const partnerFields = document.getElementById('partnerFields');
+const existingPartnerField = document.getElementById('existingPartnerField');
+const inviteRole = document.getElementById('inviteRole');
+
+// Показываем/скрываем поля партнера в зависимости от роли
+if (inviteRole && partnerFields && existingPartnerField) {
+    // Инициализация при загрузке страницы
+    function updatePartnerFields() {
+        const selectedRole = inviteRole.options[inviteRole.selectedIndex];
+        const roleName = selectedRole ? selectedRole.text : '';
+        if (roleName === 'PARTNER') {
+            partnerFields.style.display = 'block';
+            existingPartnerField.style.display = 'none';
+        } else {
+            partnerFields.style.display = 'none';
+            existingPartnerField.style.display = 'block';
+        }
+    }
+    
+    // Обработчик изменения роли
+    inviteRole.addEventListener('change', updatePartnerFields);
+    
+    // Инициализация при загрузке
+    updatePartnerFields();
+}
+
+// Форматирование телефона
+document.addEventListener("DOMContentLoaded", () => {
+    const phoneInputs = document.querySelectorAll(".phone-mask");
+    const formatPhone = (val) => {
+        const digits = val.replace(/\D/g, "");
+        const clean = digits.startsWith("7") ? digits.slice(1) : digits.startsWith("8") ? digits.slice(1) : digits;
+        const padded = clean.padEnd(10, "");
+        const part1 = padded.slice(0,3).trim();
+        const part2 = padded.slice(3,6).trim();
+        const part3 = padded.slice(6,8).trim();
+        const part4 = padded.slice(8,10).trim();
+        let out = "+7";
+        if (part1) out += ` (${part1}`;
+        if (part1 && part1.length === 3) out += `)`;
+        if (part2) out += ` ${part2}`;
+        if (part3) out += `-${part3}`;
+        if (part4) out += `-${part4}`;
+        return out;
+    };
+    phoneInputs.forEach(inp => {
+        inp.addEventListener("input", () => {
+            const formatted = formatPhone(inp.value);
+            inp.value = formatted.trim();
+            inp.setSelectionRange(formatted.length, formatted.length);
+        });
+        if (inp.value) {
+            inp.value = formatPhone(inp.value);
+        }
+    });
+});
 
 if (inviteForm) {
     inviteForm.addEventListener('submit', async function(e) {
@@ -306,16 +362,31 @@ if (inviteForm) {
             params.set('role_id', roleId);
             
             // Если роль PARTNER, добавляем данные партнера
-            const selectedRole = document.getElementById('inviteRole');
-            const roleName = selectedRole.options[selectedRole.selectedIndex].text;
+            const selectedRole = inviteRole ? inviteRole.options[inviteRole.selectedIndex] : null;
+            const roleName = selectedRole ? selectedRole.text : '';
             if (roleName === 'PARTNER') {
                 const partnerFullName = (formData.get('partner_full_name') || '').toString().trim();
                 const partnerPhone = (formData.get('partner_phone') || '').toString().trim();
                 const partnerTelegram = (formData.get('partner_telegram') || '').toString().trim();
                 
-                if (partnerFullName) params.set('partner_full_name', partnerFullName);
-                if (partnerPhone) params.set('partner_phone', partnerPhone);
-                if (partnerTelegram) params.set('partner_telegram', partnerTelegram);
+                // Проверяем обязательные поля для PARTNER на клиенте
+                if (!partnerFullName || partnerFullName.length < 5) {
+                    inviteMessage.innerHTML = '<div class="alert alert-danger">Укажите ФИО партнёра (минимум 5 символов)</div>';
+                    return;
+                }
+                const phoneClean = partnerPhone.replace(/\D/g, '');
+                if (!phoneClean || phoneClean.length < 10) {
+                    inviteMessage.innerHTML = '<div class="alert alert-danger">Укажите телефон партнёра (не меньше 10 цифр)</div>';
+                    return;
+                }
+                if (!partnerTelegram) {
+                    inviteMessage.innerHTML = '<div class="alert alert-danger">Укажите Telegram (ник) партнёра</div>';
+                    return;
+                }
+                
+                params.set('partner_full_name', partnerFullName);
+                params.set('partner_phone', partnerPhone);
+                params.set('partner_telegram', partnerTelegram);
             }
             
             const partnerId = (formData.get('partner_id') || '').toString();
