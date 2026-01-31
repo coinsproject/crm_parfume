@@ -447,19 +447,36 @@ async def delete_client(
     
     # Проверяем наличие связанных заказов
     from app.models import Order, PartnerClientMarkup
-    orders_count = db.query(Order).filter(Order.client_id == client_id).count()
+    # Статусы, которые считаются завершенными полностью
+    COMPLETED_STATUSES = ["DELIVERED", "CANCELLED", "RETURNED"]
+    
+    all_orders = db.query(Order).filter(Order.client_id == client_id).all()
+    orders_count = len(all_orders)
+    
+    # Проверяем, есть ли незавершенные заказы
+    incomplete_orders = [o for o in all_orders if o.status not in COMPLETED_STATUSES]
+    
     if orders_count > 0:
-        auth_logger.warning(f"Попытка удаления клиента {client_id} с {orders_count} заказ(ами) пользователем {current_user.username}")
-        error_msg = f"Невозможно удалить клиента: у него есть {orders_count} заказ(ов). Сначала удалите или измените заказы."
-        # Проверяем, это AJAX запрос?
-        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.headers.get("Accept") == "application/json":
-            return JSONResponse(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                content={"success": False, "error": error_msg}
+        if len(incomplete_orders) > 0:
+            # Есть незавершенные заказы - только блокировка
+            auth_logger.warning(
+                f"Попытка удаления клиента {client_id} с {len(incomplete_orders)} незавершенными заказ(ами) пользователем {current_user.username}"
             )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_msg
+            # Блокируем клиента (через is_active, если есть поле, или просто не удаляем)
+            error_msg = f"Невозможно удалить клиента: у него есть {len(incomplete_orders)} незавершенных заказ(ов). Сначала завершите или отмените заказы."
+            # Проверяем, это AJAX запрос?
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.headers.get("Accept") == "application/json":
+                return JSONResponse(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    content={"success": False, "error": error_msg}
+                )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_msg
+            )
+        # Все заказы завершены - можно удалить (продолжаем дальше)
+        auth_logger.info(
+            f"Удаление клиента {client_id} с {orders_count} завершенными заказ(ами) пользователем {current_user.username}"
         )
     
     # Проверяем наличие связанных накруток партнера и удаляем их

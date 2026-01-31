@@ -222,6 +222,9 @@ async def delete_partner(
     current_user: User = Depends(require_roles(["ADMIN"])),
     db: Session = Depends(get_db),
 ):
+    from fastapi.responses import JSONResponse
+    from fastapi import Request
+    
     partners_logger.info(
         "[PARTNER_DELETE] start partner_id=%s user_id=%s",
         partner_id,
@@ -232,11 +235,86 @@ async def delete_partner(
         partners_logger.error("[PARTNER_DELETE] partner_id=%s not found", partner_id)
         return RedirectResponse(url="/partners", status_code=303)
 
-    # мягкое удаление: деактивируем
-    partner.is_active = False
-    db.add(partner)
-    db.commit()
-    partners_logger.info("[PARTNER_DELETE] deactivated partner_id=%s", partner_id)
+    # Проверяем наличие заказов партнера
+    from app.models import Order
+    # Статусы, которые считаются завершенными полностью
+    COMPLETED_STATUSES = ["DELIVERED", "CANCELLED", "RETURNED"]
+    
+    # Заказы партнера
+    partner_orders = db.query(Order).filter(Order.partner_id == partner_id).all()
+    
+    # Заказы клиентов партнера
+    client_ids = [c.id for c in partner.clients] if partner.clients else []
+    client_orders = []
+    if client_ids:
+        client_orders = db.query(Order).filter(Order.client_id.in_(client_ids)).all()
+    
+    all_orders = partner_orders + client_orders
+    orders_count = len(all_orders)
+    
+    # Проверяем, есть ли незавершенные заказы
+    incomplete_orders = [o for o in all_orders if o.status not in COMPLETED_STATUSES]
+    
+    if orders_count == 0:
+        # Нет заказов - полное удаление
+        try:
+            # Удаляем связанные данные
+            # Удаляем накрутки партнера для клиентов
+            from app.models import PartnerClientMarkup
+            db.query(PartnerClientMarkup).filter(PartnerClientMarkup.partner_id == partner_id).delete()
+            
+            # Отвязываем пользователей от партнера
+            from app.models import User
+            db.query(User).filter(User.partner_id == partner_id).update({"partner_id": None})
+            
+            # Удаляем партнера
+            db.delete(partner)
+            db.commit()
+            partners_logger.info("[PARTNER_DELETE] fully deleted partner_id=%s (no orders)", partner_id)
+        except Exception as e:
+            db.rollback()
+            partners_logger.error("[PARTNER_DELETE] error deleting partner_id=%s: %s", partner_id, str(e))
+            return RedirectResponse(url="/partners?error=delete_failed", status_code=303)
+    elif len(incomplete_orders) > 0:
+        # Есть незавершенные заказы - только блокировка
+        partner.is_active = False
+        partner.status = "blocked"
+        db.add(partner)
+        db.commit()
+        partners_logger.info(
+            "[PARTNER_DELETE] blocked partner_id=%s (has %d incomplete orders)",
+            partner_id,
+            len(incomplete_orders)
+        )
+    else:
+        # Все заказы завершены - можно удалить
+        try:
+            # Удаляем связанные данные
+            from app.models import PartnerClientMarkup
+            db.query(PartnerClientMarkup).filter(PartnerClientMarkup.partner_id == partner_id).delete()
+            
+            # Отвязываем пользователей от партнера
+            from app.models import User
+            db.query(User).filter(User.partner_id == partner_id).update({"partner_id": None})
+            
+            # Удаляем партнера
+            db.delete(partner)
+            db.commit()
+            partners_logger.info(
+                "[PARTNER_DELETE] fully deleted partner_id=%s (all %d orders completed)",
+                partner_id,
+                orders_count
+            )
+        except Exception as e:
+            db.rollback()
+            partners_logger.error("[PARTNER_DELETE] error deleting partner_id=%s: %s", partner_id, str(e))
+            # При ошибке блокируем
+            partner.is_active = False
+            partner.status = "blocked"
+            db.add(partner)
+            db.commit()
+            return RedirectResponse(url="/partners?error=delete_failed", status_code=303)
+    
     return RedirectResponse(url="/partners", status_code=303)
 
 

@@ -323,8 +323,10 @@ async def delete_user_endpoint(
     db: Session = Depends(get_db),
 ):
     """
-    "Удаление" пользователя для тестового режима:
-    сохраняем историю (FK остаются), но убираем из интерфейса и освобождаем уникальные поля.
+    Удаление пользователя:
+    - Если нет заказов - полное удаление
+    - Если есть заказы, но все завершены - полное удаление
+    - Если есть незавершенные заказы - только блокировка
     """
     if getattr(current_user, "id", None) == user_id:
         raise HTTPException(status_code=400, detail="Нельзя удалить самого себя")
@@ -333,25 +335,93 @@ async def delete_user_endpoint(
     if not target_user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
-    # Отвязываем primary user у партнёра, если он указывал на этого пользователя
-    partner = db.query(Partner).filter(Partner.user_id == target_user.id).first()
-    if partner:
-        partner.user_id = None
-        db.add(partner)
+    # Проверяем наличие заказов пользователя
+    from app.models import Order
+    # Статусы, которые считаются завершенными полностью
+    COMPLETED_STATUSES = ["DELIVERED", "CANCELLED", "RETURNED"]
+    
+    # Заказы, созданные пользователем
+    created_orders = db.query(Order).filter(Order.created_by_user_id == user_id).all()
+    
+    # Заказы партнера пользователя (если пользователь связан с партнером)
+    partner_orders = []
+    if target_user.partner_id:
+        partner_orders = db.query(Order).filter(Order.partner_id == target_user.partner_id).all()
+    
+    all_orders = created_orders + partner_orders
+    orders_count = len(all_orders)
+    
+    # Проверяем, есть ли незавершенные заказы
+    incomplete_orders = [o for o in all_orders if o.status not in COMPLETED_STATUSES]
+    
+    if orders_count == 0:
+        # Нет заказов - полное удаление
+        try:
+            # Отвязываем primary user у партнёра, если он указывал на этого пользователя
+            partner = db.query(Partner).filter(Partner.user_id == target_user.id).first()
+            if partner:
+                partner.user_id = None
+                db.add(partner)
+            
+            # Удаляем пользователя
+            db.delete(target_user)
+            db.commit()
+            auth_logger.info(f"Admin {current_user.username} fully deleted user_id={user_id} (no orders)")
+        except Exception as e:
+            db.rollback()
+            auth_logger.error(f"Error deleting user_id={user_id}: {str(e)}")
+            # При ошибке блокируем
+            target_user.is_active = False
+            target_user.deleted_at = datetime.utcnow()
+            db.add(target_user)
+            db.commit()
+            raise HTTPException(status_code=500, detail="Ошибка при удалении пользователя")
+    elif len(incomplete_orders) > 0:
+        # Есть незавершенные заказы - только блокировка
+        target_user.is_active = False
+        target_user.deleted_at = datetime.utcnow()
+        target_user.pending_activation = False
+        target_user.email = None
+        target_user.username = f"deleted_{target_user.id}_{int(target_user.deleted_at.timestamp())}"
+        target_user.full_name = None
+        target_user.password_hash = hash_password(secrets.token_urlsafe(32))
+        
+        # Отвязываем primary user у партнёра
+        partner = db.query(Partner).filter(Partner.user_id == target_user.id).first()
+        if partner:
+            partner.user_id = None
+            db.add(partner)
+        
+        db.add(target_user)
+        db.commit()
+        auth_logger.info(
+            f"Admin {current_user.username} blocked user_id={user_id} (has {len(incomplete_orders)} incomplete orders)"
+        )
+    else:
+        # Все заказы завершены - можно удалить
+        try:
+            # Отвязываем primary user у партнёра
+            partner = db.query(Partner).filter(Partner.user_id == target_user.id).first()
+            if partner:
+                partner.user_id = None
+                db.add(partner)
+            
+            # Удаляем пользователя
+            db.delete(target_user)
+            db.commit()
+            auth_logger.info(
+                f"Admin {current_user.username} fully deleted user_id={user_id} (all {orders_count} orders completed)"
+            )
+        except Exception as e:
+            db.rollback()
+            auth_logger.error(f"Error deleting user_id={user_id}: {str(e)}")
+            # При ошибке блокируем
+            target_user.is_active = False
+            target_user.deleted_at = datetime.utcnow()
+            db.add(target_user)
+            db.commit()
+            raise HTTPException(status_code=500, detail="Ошибка при удалении пользователя")
 
-    # Мягко "удаляем" пользователя: скрываем, отключаем, и освобождаем username/email
-    target_user.deleted_at = datetime.utcnow()
-    target_user.is_active = False
-    target_user.pending_activation = False
-    target_user.email = None
-    target_user.username = f"deleted_{target_user.id}_{int(target_user.deleted_at.timestamp())}"
-    target_user.full_name = None
-    target_user.password_hash = hash_password(secrets.token_urlsafe(32))
-
-    db.add(target_user)
-    db.commit()
-
-    auth_logger.info(f"Admin {current_user.username} deleted user_id={user_id}")
     return RedirectResponse(url="/settings/users", status_code=status.HTTP_303_SEE_OTHER)
 
 
