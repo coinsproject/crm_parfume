@@ -148,8 +148,8 @@ docker-compose logs -f
 **Быстрое обновление:**
 ```bash
 # Автоматическое обновление (рекомендуется)
-chmod +x update.sh
-./update.sh
+chmod +x full_update.sh
+sudo ./full_update.sh
 
 # Или вручную:
 # 1. Резервная копия БД

@@ -52,6 +52,7 @@ _tmp_*.py
 *.tmp
 *.ZIP
 *.zip
+tmp_*.txt
 
 # Frontend
 node_modules/

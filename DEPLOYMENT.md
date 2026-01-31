@@ -259,7 +259,7 @@ sudo systemctl restart crm
 
 ### Скрипт для автоматического обновления
 
-Создайте файл `update.sh`:
+Используйте скрипт `full_update.sh`:
 
 ```bash
 #!/bin/bash
@@ -342,13 +342,13 @@ echo -e "${GREEN}=== Обновление завершено успешно ===$
 Сделайте скрипт исполняемым:
 
 ```bash
-chmod +x update.sh
+chmod +x full_update.sh
 ```
 
 Использование:
 
 ```bash
-./update.sh
+sudo ./full_update.sh
 ```
 
 ## Рекомендации по безопасности
