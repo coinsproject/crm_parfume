@@ -107,6 +107,9 @@ async def create_partner(
     phone_clean = "".join(ch for ch in (phone or "") if ch.isdigit())
     if not phone_clean or len(phone_clean) < 10:
         errors["phone"] = "Укажите телефон (не меньше 10 цифр)"
+    telegram_nick_clean = (telegram_nick or "").strip()
+    if not telegram_nick_clean:
+        errors["telegram_nick"] = "Укажите Telegram (ник) или другой мессенджер"
     if not email:
         errors["email"] = "Укажите email для входа"
 
@@ -188,7 +191,7 @@ async def create_partner(
         full_name=name_normalized,
         phone=phone or None,
         telegram=telegram or None,
-        telegram_nick=telegram_nick or None,
+        telegram_nick=telegram_nick_clean or None,
         notes=notes or None,
         comment=comment or None,
         is_active=bool(is_active),

@@ -46,21 +46,30 @@ async def get_invite_page(
             "message": message
         })
 
+    # Проверяем, является ли приглашение для партнера
+    from app.models import Role
+    role = db.query(Role).filter(Role.id == invitation.role_id).first()
+    is_partner = role and role.name == "PARTNER"
+    
     return templates.TemplateResponse("invite_accept.html", {
         "request": request,
         "email": invitation.email,
-        "token": token
+        "token": token,
+        "is_partner": is_partner,
+        "invitation": invitation
     })
 
 
 @router.post("/invite/{token}", response_class=JSONResponse)
 async def accept_invitation(
     token: str,
-    username: str = Form(...),
     password: str = Form(...),
     password_confirm: str = Form(...),
-    full_name: Optional[str] = Form(None),
-    email: Optional[str] = Form(None),
+    email: str = Form(...),
+    username: Optional[str] = Form(None),
+    partner_full_name: Optional[str] = Form(None),
+    partner_phone: Optional[str] = Form(None),
+    partner_telegram: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
     """Создание пользователя по приглашению с ожиданием активации администратором."""
@@ -72,28 +81,77 @@ async def accept_invitation(
     if password != password_confirm:
         raise HTTPException(status_code=400, detail="Пароли не совпадают")
 
-    existing_user = db.query(User).filter(User.username == username).first()
+    # Определяем логин: если не указан, используем email
+    final_username = username.strip() if username and username.strip() else email.strip()
+    
+    existing_user = db.query(User).filter(User.username == final_username).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Логин уже занят")
 
-    if email:
-        existing_user_by_email = db.query(User).filter(User.email == email).first()
-        if existing_user_by_email:
-            raise HTTPException(status_code=400, detail="Email уже используется")
+    existing_user_by_email = db.query(User).filter(User.email == email).first()
+    if existing_user_by_email:
+        raise HTTPException(status_code=400, detail="Email уже используется")
 
-    final_email = email if email else invitation.email
+    # Проверяем роль
+    from app.models import Role
+    role = db.query(Role).filter(Role.id == invitation.role_id).first()
+    is_partner = role and role.name == "PARTNER"
+    
+    # Если роль PARTNER, создаем партнера
+    partner_id = None
+    if is_partner:
+        # Используем данные из приглашения или из формы
+        partner_name = (partner_full_name or invitation.partner_full_name or "").strip()
+        partner_phone_val = (partner_phone or invitation.partner_phone or "").strip()
+        partner_telegram_val = (partner_telegram or invitation.partner_telegram or "").strip()
+        
+        if not partner_name or len(partner_name) < 5:
+            raise HTTPException(status_code=400, detail="Укажите ФИО партнёра (минимум 5 символов)")
+        
+        phone_clean = "".join(ch for ch in partner_phone_val if ch.isdigit())
+        if not phone_clean or len(phone_clean) < 10:
+            raise HTTPException(status_code=400, detail="Укажите телефон (не меньше 10 цифр)")
+        
+        if not partner_telegram_val:
+            raise HTTPException(status_code=400, detail="Укажите Telegram (ник)")
+        
+        # Создаем партнера
+        from app.models import Partner
+        partner = Partner(
+            name=partner_name,
+            full_name=partner_name,
+            phone=partner_phone_val,
+            telegram=partner_telegram_val,
+            telegram_nick=partner_telegram_val,
+            is_active=False,  # Не активен до активации администратором
+            status="active"
+        )
+        db.add(partner)
+        db.flush()
+        partner_id = partner.id
 
     user = create_user_from_invitation(
         invitation=invitation,
-        username=username,
-        email=final_email,
+        username=final_username,
+        email=email,
         password=password,
-        full_name=full_name,
+        full_name=None,  # Для партнера full_name будет в партнере
         db=db
     )
+    
+    # Связываем пользователя с партнером
+    if partner_id:
+        user.partner_id = partner_id
+        partner = db.query(Partner).filter(Partner.id == partner_id).first()
+        if partner:
+            partner.user_id = user.id
+        db.add(user)
+        db.add(partner)
 
     mark_invitation_used(invitation, db)
-    auth_logger.info(f"Invitation {invitation.id} accepted by {username}")
+    db.commit()
+    
+    auth_logger.info(f"Invitation {invitation.id} accepted by {final_username}")
 
     return {
         "success": True,

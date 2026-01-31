@@ -19,7 +19,10 @@ def create_invitation(
     db: Session,
     partner_id: Optional[int] = None,
     created_by_user: User = None,
-    expires_in_days: int = 7
+    expires_in_days: int = 7,
+    partner_full_name: Optional[str] = None,
+    partner_phone: Optional[str] = None,
+    partner_telegram: Optional[str] = None,
 ) -> Invitation:
     """Создание приглашения"""
     token = generate_invitation_token()
@@ -32,7 +35,10 @@ def create_invitation(
         token=token,
         expires_at=expires_at,
         is_used=False,
-        created_by_user_id=created_by_user.id if created_by_user else None
+        created_by_user_id=created_by_user.id if created_by_user else None,
+        partner_full_name=partner_full_name,
+        partner_phone=partner_phone,
+        partner_telegram=partner_telegram,
     )
     
     db.add(invitation)

@@ -440,6 +440,9 @@ async def create_invitation_endpoint(
     email: str = Form(...),
     role_id: str = Form(...),
     partner_id: Optional[str] = Form(None),
+    partner_full_name: Optional[str] = Form(None),
+    partner_phone: Optional[str] = Form(None),
+    partner_telegram: Optional[str] = Form(None),
     current_user: User = Depends(require_roles(["ADMIN"])),
     db: Session = Depends(get_db)
 ):
@@ -460,6 +463,16 @@ async def create_invitation_endpoint(
         except ValueError:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Некорректный partner_id")
 
+    # Если роль PARTNER, проверяем обязательные поля
+    if role.name == "PARTNER":
+        if not partner_full_name or len(partner_full_name.strip()) < 5:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Укажите ФИО партнёра (минимум 5 символов)")
+        phone_clean = "".join(ch for ch in (partner_phone or "") if ch.isdigit())
+        if not phone_clean or len(phone_clean) < 10:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Укажите телефон партнёра (не меньше 10 цифр)")
+        if not partner_telegram or not partner_telegram.strip():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Укажите Telegram (ник) партнёра")
+
     if partner_id_int:
         partner = db.query(Partner).filter(Partner.id == partner_id_int).first()
         if not partner:
@@ -470,7 +483,10 @@ async def create_invitation_endpoint(
         role=role,
         db=db,
         partner_id=partner_id_int,
-        created_by_user=current_user
+        created_by_user=current_user,
+        partner_full_name=partner_full_name.strip() if partner_full_name else None,
+        partner_phone=partner_phone.strip() if partner_phone else None,
+        partner_telegram=partner_telegram.strip() if partner_telegram else None,
     )
 
     auth_logger.info(f"Admin {current_user.username} created invitation {invitation.id} for email {email}")

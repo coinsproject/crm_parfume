@@ -306,6 +306,11 @@ class Invitation(Base):
 
     created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=func.now())
+    
+    # Поля для данных партнера (заполняются при создании приглашения)
+    partner_full_name = Column(String, nullable=True)
+    partner_phone = Column(String, nullable=True)
+    partner_telegram = Column(String, nullable=True)
 
     # Связи
     role = relationship("Role")

@@ -21,8 +21,10 @@
                         {% if errors and errors.get('phone') %}<div class="invalid-feedback">{{ errors.get('phone') }}</div>{% endif %}
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Telegram (ник)</label>
-                        <input type="text" class="form-control" name="telegram_nick" placeholder="@nickname" value="{{ (form.telegram_nick if form else None) or (partner.telegram_nick if partner else '') }}">
+                        <label class="form-label">Telegram (ник) *</label>
+                        <input type="text" class="form-control {% if errors and errors.get('telegram_nick') %}is-invalid{% endif %}" name="telegram_nick" placeholder="@nickname" value="{{ (form.telegram_nick if form else None) or (partner.telegram_nick if partner else '') }}" required>
+                        {% if errors and errors.get('telegram_nick') %}<div class="invalid-feedback">{{ errors.get('telegram_nick') }}</div>{% endif %}
+                        <div class="form-text">Или другой мессенджер</div>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Telegram (контакт)</label>

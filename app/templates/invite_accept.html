@@ -12,28 +12,48 @@
         <p class="auth-subtitle">Вы приглашены по адресу: {{ email or '—' }}</p>
         
         <form class="auth-form" id="acceptInvitationForm">
+            {% if is_partner %}
+            <!-- Поля для партнера -->
+            <h5 class="mb-3">Основные данные</h5>
+            <div class="mb-3">
+                <label for="partner_full_name" class="form-label">ФИО партнёра *</label>
+                <input type="text" class="form-control auth-input" id="partner_full_name" name="partner_full_name" 
+                       value="{{ invitation.partner_full_name if invitation and invitation.partner_full_name else '' }}" required>
+            </div>
+            <div class="mb-3">
+                <label for="partner_phone" class="form-label">Телефон *</label>
+                <input type="text" class="form-control auth-input phone-mask" id="partner_phone" name="partner_phone" 
+                       value="{{ invitation.partner_phone if invitation and invitation.partner_phone else '' }}" required>
+            </div>
+            <div class="mb-3">
+                <label for="partner_telegram" class="form-label">Telegram (ник) *</label>
+                <input type="text" class="form-control auth-input" id="partner_telegram" name="partner_telegram" 
+                       value="{{ invitation.partner_telegram if invitation and invitation.partner_telegram else '' }}" 
+                       placeholder="@username" required>
+                <div class="form-text small">Или другой мессенджер</div>
+            </div>
+            <hr class="my-4">
+            {% endif %}
+            
+            <h5 class="mb-3">Контакты / доступ</h5>
+            <div class="mb-3">
+                <label for="email" class="form-label">Email *</label>
+                <input type="email" class="form-control auth-input" id="email" name="email" value="{{ email }}" required>
+            </div>
+            
             <div class="mb-3">
                 <label for="username" class="form-label">Логин</label>
-                <input type="text" class="form-control auth-input" id="username" name="username" required>
+                <input type="text" class="form-control auth-input" id="username" name="username">
+                <div class="form-text small">Если не указан, будет использован email</div>
             </div>
             
             <div class="mb-3">
-                <label for="full_name" class="form-label">Имя</label>
-                <input type="text" class="form-control auth-input" id="full_name" name="full_name" placeholder="Опционально">
-            </div>
-
-            <div class="mb-3">
-                <label for="email" class="form-label">Email</label>
-                <input type="email" class="form-control auth-input" id="email" name="email" value="{{ email }}" placeholder="Можно изменить">
-            </div>
-            
-            <div class="mb-3">
-                <label for="password" class="form-label">Пароль</label>
+                <label for="password" class="form-label">Пароль *</label>
                 <input type="password" class="form-control auth-input" id="password" name="password" required>
             </div>
             
             <div class="mb-3">
-                <label for="passwordConfirm" class="form-label">Подтверждение пароля</label>
+                <label for="passwordConfirm" class="form-label">Подтверждение пароля *</label>
                 <input type="password" class="form-control auth-input" id="passwordConfirm" name="password_confirm" required>
             </div>
             
@@ -74,16 +94,30 @@ document.getElementById('acceptInvitationForm').addEventListener('submit', async
     const formData = new FormData(this);
     const token = window.location.pathname.split('/').pop();
 
+    // Собираем данные формы
+    const params = new URLSearchParams();
+    params.set('email', formData.get('email') || '');
+    params.set('password', formData.get('password') || '');
+    params.set('password_confirm', formData.get('password_confirm') || '');
+    
+    const username = formData.get('username');
+    if (username && username.trim()) {
+        params.set('username', username.trim());
+    }
+    
+    // Если это партнер, добавляем данные партнера
+    const partnerFullName = formData.get('partner_full_name');
+    const partnerPhone = formData.get('partner_phone');
+    const partnerTelegram = formData.get('partner_telegram');
+    
+    if (partnerFullName) params.set('partner_full_name', partnerFullName);
+    if (partnerPhone) params.set('partner_phone', partnerPhone);
+    if (partnerTelegram) params.set('partner_telegram', partnerTelegram);
+
     try {
         const response = await fetch(`/invite/${token}`, {
             method: 'POST',
-            body: new URLSearchParams({
-                username: formData.get('username'),
-                password: formData.get('password'),
-                password_confirm: formData.get('password_confirm'),
-                full_name: formData.get('full_name') || '',
-                email: formData.get('email') || ''
-            })
+            body: params
         });
         const data = await response.json();
 
@@ -106,6 +140,37 @@ document.getElementById('acceptInvitationForm').addEventListener('submit', async
         errorMessage.style.display = 'block';
         console.error('Accept invitation error:', error);
     }
+});
+
+// Форматирование телефона
+document.addEventListener("DOMContentLoaded", () => {
+    const phoneInputs = document.querySelectorAll(".phone-mask");
+    const formatPhone = (val) => {
+        const digits = val.replace(/\D/g, "");
+        const clean = digits.startsWith("7") ? digits.slice(1) : digits.startsWith("8") ? digits.slice(1) : digits;
+        const padded = clean.padEnd(10, "");
+        const part1 = padded.slice(0,3).trim();
+        const part2 = padded.slice(3,6).trim();
+        const part3 = padded.slice(6,8).trim();
+        const part4 = padded.slice(8,10).trim();
+        let out = "+7";
+        if (part1) out += ` (${part1}`;
+        if (part1 && part1.length === 3) out += `)`;
+        if (part2) out += ` ${part2}`;
+        if (part3) out += `-${part3}`;
+        if (part4) out += `-${part4}`;
+        return out;
+    };
+    phoneInputs.forEach(inp => {
+        inp.addEventListener("input", () => {
+            const formatted = formatPhone(inp.value);
+            inp.value = formatted.trim();
+            inp.setSelectionRange(formatted.length, formatted.length);
+        });
+        if (inp.value) {
+            inp.value = formatPhone(inp.value);
+        }
+    });
 });
 </script>
 {% endblock %}

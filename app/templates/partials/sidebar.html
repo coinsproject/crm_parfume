@@ -94,12 +94,18 @@
         <span class="d-flex align-items-center"><i class="nav-icon fas fa-cog me-2"></i><span>Настройки</span></span>
         <i class="fas fa-chevron-down small"></i>
       </a>
-      <div class="collapse {% if active_menu in ['settings_roles','settings_security','admin_catalog'] %}show{% endif %}" id="settingsMenu">
+      <div class="collapse {% if active_menu in ['settings_roles','settings_users','settings_security','admin_catalog'] %}show{% endif %}" id="settingsMenu">
         <ul class="nav flex-column ms-3 mt-1">
           <li class="nav-item">
             <a class="nav-link {% if active_menu == 'settings_roles' %}active{% endif %}" href="/settings/roles">
               <i class="nav-icon fas fa-key me-2"></i>
               <span>Роли и права</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if active_menu == 'settings_users' %}active{% endif %}" href="/settings/users">
+              <i class="nav-icon fas fa-users me-2"></i>
+              <span>Пользователи</span>
             </a>
           </li>
           <li class="nav-item">

@@ -156,7 +156,26 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="mb-3">
+                    <!-- Поля для партнера (показываются только для роли PARTNER) -->
+                    <div id="partnerFields" style="display: none;">
+                        <hr class="my-3">
+                        <h6 class="mb-3">Основные данные партнёра</h6>
+                        <div class="mb-3">
+                            <label for="invitePartnerFullName" class="form-label">ФИО партнёра *</label>
+                            <input type="text" class="form-control" id="invitePartnerFullName" name="partner_full_name" placeholder="Иванов Иван Иванович">
+                        </div>
+                        <div class="mb-3">
+                            <label for="invitePartnerPhone" class="form-label">Телефон *</label>
+                            <input type="text" class="form-control phone-mask" id="invitePartnerPhone" name="partner_phone" placeholder="+7 999 123-45-67">
+                        </div>
+                        <div class="mb-3">
+                            <label for="invitePartnerTelegram" class="form-label">Telegram (ник) *</label>
+                            <input type="text" class="form-control" id="invitePartnerTelegram" name="partner_telegram" placeholder="@username">
+                            <div class="form-text">Или другой мессенджер</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3" id="existingPartnerField" style="display: none;">
                         <label for="invitePartner" class="form-label">Партнёр (опционально)</label>
                         <select class="form-select" id="invitePartner" name="partner_id">
                             <option value="">Не привязывать</option>
@@ -285,6 +304,20 @@ if (inviteForm) {
             }
             params.set('email', email);
             params.set('role_id', roleId);
+            
+            // Если роль PARTNER, добавляем данные партнера
+            const selectedRole = document.getElementById('inviteRole');
+            const roleName = selectedRole.options[selectedRole.selectedIndex].text;
+            if (roleName === 'PARTNER') {
+                const partnerFullName = (formData.get('partner_full_name') || '').toString().trim();
+                const partnerPhone = (formData.get('partner_phone') || '').toString().trim();
+                const partnerTelegram = (formData.get('partner_telegram') || '').toString().trim();
+                
+                if (partnerFullName) params.set('partner_full_name', partnerFullName);
+                if (partnerPhone) params.set('partner_phone', partnerPhone);
+                if (partnerTelegram) params.set('partner_telegram', partnerTelegram);
+            }
+            
             const partnerId = (formData.get('partner_id') || '').toString();
             if (partnerId) params.set('partner_id', partnerId);
 
