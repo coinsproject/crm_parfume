@@ -136,6 +136,12 @@ fi
 # ============================================================================
 print_section "ШАГ 2: Обновление кода из Git"
 
+# Исправляем проблему с правами доступа Git (dubious ownership)
+if [ -d ".git" ]; then
+    REPO_DIR=$(pwd)
+    git config --global --add safe.directory "$REPO_DIR" 2>/dev/null || true
+fi
+
 git fetch origin main || {
     echo -e "${RED}✗ Ошибка при получении обновлений из Git${NC}"
     exit 1
