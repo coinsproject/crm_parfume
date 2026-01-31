@@ -115,7 +115,30 @@ def sync_release_notes():
             existing = db.query(ReleaseNote).filter(ReleaseNote.version == version).first()
             
             if existing:
-                print(f"✓ Версия {version} уже существует (ID: {existing.id})")
+                # Обновляем существующий релиз-ноутс, если данные отличаются
+                updated = False
+                if existing.title != release_data["title"]:
+                    existing.title = release_data["title"]
+                    updated = True
+                if existing.description != release_data.get("description"):
+                    existing.description = release_data.get("description")
+                    updated = True
+                if existing.release_type != release_data.get("release_type", "minor"):
+                    existing.release_type = release_data.get("release_type", "minor")
+                    updated = True
+                if existing.changes != release_data.get("changes"):
+                    existing.changes = release_data.get("changes")
+                    updated = True
+                if existing.release_date != release_data.get("release_date", date.today()):
+                    existing.release_date = release_data.get("release_date", date.today())
+                    updated = True
+                
+                if updated:
+                    db.commit()
+                    print(f"✓ Версия {version} обновлена (ID: {existing.id})")
+                    created_count += 1
+                else:
+                    print(f"✓ Версия {version} уже существует и актуальна (ID: {existing.id})")
                 skipped_count += 1
             else:
                 try:
