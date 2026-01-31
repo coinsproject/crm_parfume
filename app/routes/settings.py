@@ -470,8 +470,7 @@ async def create_invitation_endpoint(
         phone_clean = "".join(ch for ch in (partner_phone or "") if ch.isdigit())
         if not phone_clean or len(phone_clean) < 10:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Укажите телефон партнёра (не меньше 10 цифр)")
-        if not partner_telegram or not partner_telegram.strip():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Укажите Telegram (ник) партнёра")
+        # Telegram будет заполнен партнером при принятии приглашения, не проверяем здесь
 
     if partner_id_int:
         partner = db.query(Partner).filter(Partner.id == partner_id_int).first()

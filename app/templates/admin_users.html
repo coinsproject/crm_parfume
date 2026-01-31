@@ -168,11 +168,6 @@
                             <label for="invitePartnerPhone" class="form-label">Телефон *</label>
                             <input type="text" class="form-control phone-mask" id="invitePartnerPhone" name="partner_phone" placeholder="+7 999 123-45-67">
                         </div>
-                        <div class="mb-3">
-                            <label for="invitePartnerTelegram" class="form-label">Telegram (ник) *</label>
-                            <input type="text" class="form-control" id="invitePartnerTelegram" name="partner_telegram" placeholder="@username">
-                            <div class="form-text">Или другой мессенджер</div>
-                        </div>
                     </div>
                     
                     <div class="mb-3" id="existingPartnerField" style="display: none;">
@@ -367,7 +362,6 @@ if (inviteForm) {
             if (roleName === 'PARTNER') {
                 const partnerFullName = (formData.get('partner_full_name') || '').toString().trim();
                 const partnerPhone = (formData.get('partner_phone') || '').toString().trim();
-                const partnerTelegram = (formData.get('partner_telegram') || '').toString().trim();
                 
                 // Проверяем обязательные поля для PARTNER на клиенте
                 if (!partnerFullName || partnerFullName.length < 5) {
@@ -379,14 +373,10 @@ if (inviteForm) {
                     inviteMessage.innerHTML = '<div class="alert alert-danger">Укажите телефон партнёра (не меньше 10 цифр)</div>';
                     return;
                 }
-                if (!partnerTelegram) {
-                    inviteMessage.innerHTML = '<div class="alert alert-danger">Укажите Telegram (ник) партнёра</div>';
-                    return;
-                }
                 
                 params.set('partner_full_name', partnerFullName);
                 params.set('partner_phone', partnerPhone);
-                params.set('partner_telegram', partnerTelegram);
+                // Telegram будет заполнен партнером при принятии приглашения
             }
             
             const partnerId = (formData.get('partner_id') || '').toString();
