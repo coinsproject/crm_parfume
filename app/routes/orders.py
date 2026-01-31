@@ -818,24 +818,19 @@ async def order_price_search_api(
     product_ids = [p.id for p in products]
     base_price_by_pid: dict[int, Decimal] = {}
     if product_ids and (user_has_permission(current_user, db, "prices.view_client") or user_has_permission(current_user, db, "prices.view_cost")):
-        # Используем ту же логику, что и в price.py для получения актуальных цен
-        # Берем цены из PriceProduct.price_2 (если есть) или из последней PriceHistory
+        # Используем ту же логику, что и в order_price_product_api для получения актуальных цен
+        # Берем цены из последней PriceHistory (как в order_price_product_api)
         for product in products:
-            # Сначала пробуем взять цену из самого продукта (price_2)
-            if hasattr(product, 'price_2') and product.price_2 is not None:
-                base_price_by_pid[product.id] = Decimal(str(product.price_2))
-            else:
-                # Если нет, берем из последней истории
-                history = (
-                    db.query(PriceHistory)
-                    .filter(PriceHistory.price_product_id == product.id)
-                    .order_by(PriceHistory.created_at.desc())
-                    .first()
-                )
-                if history:
-                    val = history.new_price_2 if history.new_price_2 is not None else history.price
-                    if val is not None:
-                        base_price_by_pid[product.id] = Decimal(str(val))
+            history = (
+                db.query(PriceHistory)
+                .filter(PriceHistory.price_product_id == product.id)
+                .order_by(PriceHistory.created_at.desc())
+                .first()
+            )
+            if history:
+                val = history.new_price_2 if history.new_price_2 is not None else history.price
+                if val is not None:
+                    base_price_by_pid[product.id] = Decimal(str(val))
 
     # Определяем partner_id и client_id для применения накруток
     partner_id_int = None
