@@ -12,18 +12,25 @@ def init_roles_and_admin():
         Base.metadata.create_all(bind=engine)
 
         base_permissions = [
-            ('dashboard.view', 'View dashboard'),
-            ('clients.view_all', 'Clients: view all'),
-            ('clients.view_own', 'Clients: view own'),
-            ('clients.create', 'Clients: create'),
-            ('orders.view_all', 'Orders: view all'),
-            ('orders.view_own', 'Orders: view own'),
-            ('orders.create', 'Orders: create'),
-            ('partners.view_all', 'Partners: view all'),
-            ('partners.view_own', 'Partners: view own'),
-            ('catalog.view_full', 'Catalog: full mode'),
-            ('catalog.view_client', 'Catalog: client mode'),
-            ('catalog.manage', 'Catalog: manage data'),
+            ('dashboard.view', 'Просмотр дашборда'),
+            ('clients.view_all', 'Клиенты: просмотр всех'),
+            ('clients.view_own', 'Клиенты: просмотр своих'),
+            ('clients.create', 'Клиенты: создание'),
+            ('orders.view_all', 'Заказы: просмотр всех'),
+            ('orders.view_own', 'Заказы: просмотр своих'),
+            ('orders.create', 'Заказы: создание'),
+            ('partners.view_all', 'Партнёры: просмотр всех'),
+            ('partners.view_own', 'Партнёры: просмотр своих'),
+            ('catalog.view_full', 'Каталог: полный режим'),
+            ('catalog.view_client', 'Каталог: клиентский режим'),
+            ('catalog.manage', 'Каталог: управление данными'),
+            # Права для работы с ценами
+            ('prices.view_client', 'Просмотр цен для клиента'),
+            ('prices.view_cost', 'Просмотр себестоимости/закупа'),
+            ('prices.view_margin', 'Просмотр маржи'),
+            ('prices.edit', 'Редактирование цен'),
+            ('price.upload', 'Загрузка прайса'),
+            ('price.search', 'Поиск по прайсу'),
         ]
 
         for key, label in base_permissions:
