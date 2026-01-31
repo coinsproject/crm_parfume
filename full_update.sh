@@ -183,8 +183,23 @@ print_section "ШАГ 3: Анализ изменений и необходимо
 NEEDS_REBUILD=false
 
 if [ "$CODE_UPDATED" = true ]; then
+    # Проверяем изменения относительно предыдущего коммита
     if git diff HEAD@{1} HEAD --name-only 2>/dev/null | grep -qE "(Dockerfile|requirements\.txt|docker-compose\.yml|\.py$|\.html$|\.js$|\.css$)"; then
         echo -e "${YELLOW}Обнаружены изменения в коде или зависимостях${NC}"
+        NEEDS_REBUILD=true
+    else
+        # Если не удалось определить через diff, проверяем последний коммит
+        LAST_COMMIT_FILES=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | grep -E "(Dockerfile|requirements\.txt|docker-compose\.yml|\.py$|\.html$|\.js$|\.css$)" || true)
+        if [ -n "$LAST_COMMIT_FILES" ]; then
+            echo -e "${YELLOW}Обнаружены изменения в последнем коммите${NC}"
+            NEEDS_REBUILD=true
+        fi
+    fi
+    
+    # Если код обновлен, но не определили изменения - все равно пересобираем для надежности
+    # (особенно важно для статических файлов, которые копируются в образ)
+    if [ "$NEEDS_REBUILD" = false ]; then
+        echo -e "${BLUE}Код обновлен, пересобираем образ для применения всех изменений${NC}"
         NEEDS_REBUILD=true
     fi
 fi
