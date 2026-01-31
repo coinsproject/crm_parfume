@@ -757,13 +757,56 @@ async def order_price_search_api(
     query = db.query(PriceProduct).filter(PriceProduct.is_active.is_(True))
     q_norm = (q or "").strip()
     if q_norm:
-        like_expr = f"%{q_norm.lower()}%"
-        query = query.filter(
-            (PriceProduct.external_article.ilike(like_expr)) |
-            (PriceProduct.raw_name.ilike(like_expr)) |
-            (PriceProduct.brand.ilike(like_expr)) |
-            (PriceProduct.product_name.ilike(like_expr))
-        )
+        # Используем улучшенный поиск с поддержкой кириллицы
+        # Разбиваем запрос на токены и ищем по каждому
+        tokens = [t.strip() for t in q_norm.replace(",", " ").split() if t.strip()]
+        if tokens:
+            # Пробуем использовать FTS5 для лучшей поддержки кириллицы
+            dialect = db.bind.dialect.name if db.bind else None
+            fts_ids = []
+            
+            if dialect == "sqlite" and tokens:
+                try:
+                    # Проверяем существование таблицы FTS5
+                    fts_exists = db.execute(sa.text("""
+                        SELECT name FROM sqlite_master 
+                        WHERE type='table' AND name='price_products_fts5'
+                    """)).first()
+                    
+                    if fts_exists:
+                        # Формируем поисковый запрос для FTS5
+                        match_expr = " AND ".join(tokens)
+                        try:
+                            fts_subquery = sa.text("""
+                                SELECT rowid FROM price_products_fts5 
+                                WHERE price_products_fts5 MATCH :match
+                            """)
+                            fts_result = db.execute(fts_subquery, {"match": match_expr})
+                            fts_ids = [row[0] for row in fts_result] if fts_result else []
+                        except Exception:
+                            fts_ids = []
+                except Exception:
+                    fts_ids = []
+            
+            if fts_ids:
+                # Используем FTS5 результаты
+                query = query.filter(PriceProduct.id.in_(fts_ids))
+            else:
+                # Fallback на обычный поиск с улучшенной обработкой кириллицы
+                # Используем OR для каждого токена, чтобы найти товары, содержащие любой из токенов
+                conditions = []
+                for tok in tokens:
+                    like_expr = f"%{tok}%"
+                    conditions.append(
+                        (PriceProduct.external_article.ilike(like_expr)) |
+                        (PriceProduct.raw_name.ilike(like_expr)) |
+                        (PriceProduct.brand.ilike(like_expr)) |
+                        (PriceProduct.product_name.ilike(like_expr)) |
+                        (PriceProduct.search_text.ilike(like_expr) if hasattr(PriceProduct, 'search_text') else sa.false())
+                    )
+                # Объединяем условия через AND (все токены должны быть найдены)
+                from sqlalchemy import or_, and_
+                query = query.filter(and_(*conditions))
 
     products = (
         query.order_by(PriceProduct.id.desc())
@@ -775,24 +818,24 @@ async def order_price_search_api(
     product_ids = [p.id for p in products]
     base_price_by_pid: dict[int, Decimal] = {}
     if product_ids and (user_has_permission(current_user, db, "prices.view_client") or user_has_permission(current_user, db, "prices.view_cost")):
-        sub = (
-            db.query(
-                PriceHistory.price_product_id.label("pid"),
-                sa.func.max(PriceHistory.created_at).label("max_created"),
-            )
-            .filter(PriceHistory.price_product_id.in_(product_ids))
-            .group_by(PriceHistory.price_product_id)
-            .subquery()
-        )
-        rows = (
-            db.query(PriceHistory.price_product_id, PriceHistory.new_price_2, PriceHistory.price)
-            .join(sub, (PriceHistory.price_product_id == sub.c.pid) & (PriceHistory.created_at == sub.c.max_created))
-            .all()
-        )
-        for pid, new_price_2, price in rows:
-            val = new_price_2 if new_price_2 is not None else price
-            if val is not None:
-                base_price_by_pid[int(pid)] = Decimal(str(val))
+        # Используем ту же логику, что и в price.py для получения актуальных цен
+        # Берем цены из PriceProduct.price_2 (если есть) или из последней PriceHistory
+        for product in products:
+            # Сначала пробуем взять цену из самого продукта (price_2)
+            if hasattr(product, 'price_2') and product.price_2 is not None:
+                base_price_by_pid[product.id] = Decimal(str(product.price_2))
+            else:
+                # Если нет, берем из последней истории
+                history = (
+                    db.query(PriceHistory)
+                    .filter(PriceHistory.price_product_id == product.id)
+                    .order_by(PriceHistory.created_at.desc())
+                    .first()
+                )
+                if history:
+                    val = history.new_price_2 if history.new_price_2 is not None else history.price
+                    if val is not None:
+                        base_price_by_pid[product.id] = Decimal(str(val))
 
     # Определяем partner_id и client_id для применения накруток
     partner_id_int = None
@@ -816,16 +859,18 @@ async def order_price_search_api(
         except ValueError:
             pass
 
-    # Применяем накрутки к ценам, если есть партнер
+    # Применяем накрутки к ценам
+    # ВАЖНО: Используем ту же логику, что и при добавлении товара в заказ
     price_by_pid: dict[int, float] = {}
-    if partner_id_int and base_price_by_pid:
-        total_markup = get_total_markup_percent(db, partner_id_int, client_id=client_id_int)
-        for pid, base_price in base_price_by_pid.items():
+    for pid, base_price in base_price_by_pid.items():
+        if partner_id_int:
+            # Если есть партнер, применяем накрутки
+            total_markup = get_total_markup_percent(db, partner_id_int, client_id=client_id_int)
             client_price = calc_client_price(base_price, total_markup)
             price_by_pid[pid] = float(client_price)
-    else:
-        # Если нет партнера, используем базовые цены
-        price_by_pid = {pid: float(price) for pid, price in base_price_by_pid.items()}
+        else:
+            # Если нет партнера, используем базовую цену (без накруток)
+            price_by_pid[pid] = float(base_price)
 
     return [
         {
