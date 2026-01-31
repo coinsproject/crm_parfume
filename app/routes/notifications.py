@@ -100,6 +100,37 @@ async def get_unread_count(
     return {"count": count}
 
 
+@router.get("/api/latest", response_class=JSONResponse)
+async def get_latest_notification(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Получить последнее непрочитанное уведомление"""
+    from app.services.auth_service import get_current_user_from_request
+    current_user = await get_current_user_from_request(request, db)
+    
+    if not current_user:
+        return None
+    
+    notification = db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        Notification.is_read == False
+    ).order_by(desc(Notification.created_at)).first()
+    
+    if not notification:
+        return None
+    
+    return {
+        "id": notification.id,
+        "title": notification.title,
+        "message": notification.message,
+        "type": notification.type,
+        "related_type": notification.related_type,
+        "related_id": notification.related_id,
+        "created_at": notification.created_at.isoformat() if notification.created_at else None
+    }
+
+
 
 
 

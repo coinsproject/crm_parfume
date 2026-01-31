@@ -7,7 +7,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Invitation, User
+from app.models import Invitation, User, Notification, Role
 from app.services.invitation_service import (
     create_user_from_invitation,
     mark_invitation_used
@@ -149,6 +149,33 @@ async def accept_invitation(
         db.add(partner)
 
     mark_invitation_used(invitation, db)
+    
+    # Создаем уведомления для всех администраторов о новом пользователе, ожидающем активации
+    admin_role = db.query(Role).filter(Role.name == "ADMIN").first()
+    if admin_role:
+        admin_users = db.query(User).filter(
+            User.role_id == admin_role.id,
+            User.deleted_at.is_(None)
+        ).all()
+        
+        user_type = "партнёр" if is_partner else "пользователь"
+        partner_info = ""
+        if is_partner and partner_id:
+            partner_obj = db.query(Partner).filter(Partner.id == partner_id).first()
+            if partner_obj:
+                partner_info = f" ({partner_obj.full_name or partner_obj.name})"
+        
+        for admin in admin_users:
+            notification = Notification(
+                user_id=admin.id,
+                type="user_pending_activation",
+                title=f"Новый {user_type} ожидает активации",
+                message=f"{final_username}{partner_info} ({email}) зарегистрировался и ожидает активации",
+                related_type="user",
+                related_id=user.id,
+            )
+            db.add(notification)
+    
     db.commit()
     
     auth_logger.info(f"Invitation {invitation.id} accepted by {final_username}")
