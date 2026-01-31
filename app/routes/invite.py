@@ -7,7 +7,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Invitation, User, Notification, Role
+from app.models import Invitation, User, Notification, Role, Partner
 from app.services.invitation_service import (
     create_user_from_invitation,
     mark_invitation_used
