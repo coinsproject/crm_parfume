@@ -1,0 +1,81 @@
+{% extends "layout.html" %}
+
+{% block title %}Документация - Parfume CRM{% endblock %}
+
+{% block page_title %}Документация и инструкции{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">Руководство администратора</h3>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Здесь собраны все инструкции по настройке и использованию системы Parfume CRM.</p>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-bell text-primary me-2"></i>
+                                        Настройка уведомлений
+                                    </h5>
+                                    <p class="card-text">Инструкции по настройке email и Telegram уведомлений для администраторов при регистрации новых пользователей.</p>
+                                    <a href="/settings/docs/notifications" class="btn btn-primary">Открыть инструкцию</a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-sync-alt text-success me-2"></i>
+                                        Обновление системы
+                                    </h5>
+                                    <p class="card-text">Инструкции по обновлению системы на сервере, применению миграций и проверке работоспособности.</p>
+                                    <a href="/settings/docs/updates" class="btn btn-primary">Открыть инструкцию</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <h4 class="mb-3">Последние обновления</h4>
+                    <div class="list-group">
+                        {% for note in release_notes %}
+                        <a href="/settings/docs/release/{{ note.id }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">Версия {{ note.version }} - {{ note.title }}</h5>
+                                <small>{{ note.release_date.strftime('%d.%m.%Y') }}</small>
+                            </div>
+                            {% if note.description %}
+                            <p class="mb-1">{{ note.description[:150] }}{% if note.description|length > 150 %}...{% endif %}</p>
+                            {% endif %}
+                            <small>
+                                {% if note.release_type == 'major' %}
+                                    <span class="badge bg-danger">Крупное обновление</span>
+                                {% elif note.release_type == 'minor' %}
+                                    <span class="badge bg-primary">Новые функции</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Исправления</span>
+                                {% endif %}
+                            </small>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="mt-3">
+                        <a href="/release_notes" class="btn btn-outline-secondary">Все релиз-ноутсы</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

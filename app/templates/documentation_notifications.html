@@ -1,0 +1,148 @@
+{% extends "layout.html" %}
+
+{% block title %}Настройка уведомлений - Документация - Parfume CRM{% endblock %}
+
+{% block page_title %}Настройка уведомлений{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title mb-0">Настройка Email и Telegram уведомлений</h3>
+                    <a href="/settings/docs" class="btn btn-sm btn-outline-secondary">← К документации</a>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Система поддерживает отправку уведомлений администраторам при регистрации новых пользователей (партнёров), ожидающих активации.</p>
+                    
+                    <hr>
+                    
+                    <h4 class="mt-4 mb-3">
+                        <i class="fas fa-envelope text-primary me-2"></i>
+                        Настройка Email уведомлений
+                    </h4>
+                    
+                    <h5>Для Gmail:</h5>
+                    <ol>
+                        <li>Включите двухфакторную аутентификацию в вашем Google аккаунте</li>
+                        <li>Создайте пароль приложения:
+                            <ul>
+                                <li>Перейдите в <a href="https://myaccount.google.com/" target="_blank">Настройки аккаунта Google</a></li>
+                                <li>Безопасность → Двухэтапная аутентификация → Пароли приложений</li>
+                                <li>Создайте новый пароль приложения для "Почта" и "Другое устройство"</li>
+                                <li>Скопируйте сгенерированный пароль (16 символов)</li>
+                            </ul>
+                        </li>
+                        <li>Добавьте переменные окружения в <code>.env</code> или <code>docker-compose.yml</code>:
+                            <pre class="bg-light p-3 rounded mt-2"><code>SMTP_ENABLED=true
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-16-char-app-password
+SMTP_FROM_EMAIL=your-email@gmail.com</code></pre>
+                        </li>
+                    </ol>
+                    
+                    <h5>Для других почтовых серверов:</h5>
+                    <p>Измените <code>SMTP_HOST</code> и <code>SMTP_PORT</code> в соответствии с настройками вашего почтового провайдера:</p>
+                    <ul>
+                        <li><strong>Yandex:</strong> <code>smtp.yandex.ru:465</code> (SSL) или <code>smtp.yandex.ru:587</code> (TLS)</li>
+                        <li><strong>Mail.ru:</strong> <code>smtp.mail.ru:465</code> (SSL) или <code>smtp.mail.ru:587</code> (TLS)</li>
+                        <li><strong>Outlook:</strong> <code>smtp-mail.outlook.com:587</code> (TLS)</li>
+                    </ul>
+                    
+                    <hr>
+                    
+                    <h4 class="mt-4 mb-3">
+                        <i class="fab fa-telegram text-info me-2"></i>
+                        Настройка Telegram уведомлений
+                    </h4>
+                    
+                    <h5>Шаг 1: Создание бота</h5>
+                    <ol>
+                        <li>Откройте Telegram и найдите <a href="https://t.me/BotFather" target="_blank">@BotFather</a></li>
+                        <li>Отправьте команду <code>/newbot</code></li>
+                        <li>Следуйте инструкциям и задайте имя и username для бота</li>
+                        <li>Скопируйте токен бота (выглядит как <code>1234567890:ABCdefGHIjklMNOpqrsTUVwxyz</code>)</li>
+                    </ol>
+                    
+                    <h5>Шаг 2: Получение Chat ID администраторов</h5>
+                    <p>Есть несколько способов:</p>
+                    
+                    <p><strong>Способ 1: Через бота @userinfobot</strong></p>
+                    <ol>
+                        <li>Найдите бота <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a> в Telegram</li>
+                        <li>Начните диалог с ботом</li>
+                        <li>Бот отправит ваш Chat ID (число, например <code>123456789</code>)</li>
+                    </ol>
+                    
+                    <p><strong>Способ 2: Через вашего бота</strong></p>
+                    <ol>
+                        <li>Отправьте любое сообщение вашему боту</li>
+                        <li>Откройте в браузере: <code>https://api.telegram.org/bot&lt;ВАШ_ТОКЕН&gt;/getUpdates</code></li>
+                        <li>Найдите в ответе <code>"chat":{"id":123456789}</code> - это ваш Chat ID</li>
+                    </ol>
+                    
+                    <h5>Шаг 3: Настройка переменных окружения</h5>
+                    <p>Добавьте в <code>.env</code> или <code>docker-compose.yml</code>:</p>
+                    <pre class="bg-light p-3 rounded"><code>TELEGRAM_BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
+TELEGRAM_ADMIN_CHAT_IDS=123456789,987654321</code></pre>
+                    
+                    <div class="alert alert-warning mt-3">
+                        <strong>Важно:</strong>
+                        <ul class="mb-0">
+                            <li><code>TELEGRAM_ADMIN_CHAT_IDS</code> - список Chat ID через запятую без пробелов</li>
+                            <li>Каждый администратор должен сначала написать боту, чтобы бот мог отправлять ему сообщения</li>
+                        </ul>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h4 class="mt-4 mb-3">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        Проверка работы
+                    </h4>
+                    <ol>
+                        <li>Создайте тестовое приглашение для партнёра</li>
+                        <li>Партнёр должен принять приглашение и зарегистрироваться</li>
+                        <li>Администраторы должны получить:
+                            <ul>
+                                <li>In-app уведомление в системе</li>
+                                <li>Email уведомление (если настроено)</li>
+                                <li>Telegram уведомление (если настроено)</li>
+                            </ul>
+                        </li>
+                    </ol>
+                    
+                    <hr>
+                    
+                    <h4 class="mt-4 mb-3">
+                        <i class="fas fa-power-off text-secondary me-2"></i>
+                        Отключение уведомлений
+                    </h4>
+                    <p>Чтобы отключить уведомления, установите:</p>
+                    <pre class="bg-light p-3 rounded"><code>SMTP_ENABLED=false
+TELEGRAM_BOT_TOKEN=</code></pre>
+                    <p>Или просто не указывайте эти переменные.</p>
+                    
+                    <hr>
+                    
+                    <h4 class="mt-4 mb-3">
+                        <i class="fas fa-bug text-danger me-2"></i>
+                        Логирование
+                    </h4>
+                    <p>Ошибки отправки уведомлений логируются в:</p>
+                    <ul>
+                        <li><strong>Email:</strong> <code>email</code> logger</li>
+                        <li><strong>Telegram:</strong> <code>telegram</code> logger</li>
+                    </ul>
+                    <p>Проверить логи можно через:</p>
+                    <pre class="bg-light p-3 rounded"><code>docker logs parfume-crm | grep -E "(email|telegram)"</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

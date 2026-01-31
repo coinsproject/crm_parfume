@@ -1,0 +1,112 @@
+{% extends "layout.html" %}
+
+{% block title %}Обновление системы - Документация - Parfume CRM{% endblock %}
+
+{% block page_title %}Обновление системы{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title mb-0">Инструкции по обновлению системы</h3>
+                    <a href="/settings/docs" class="btn btn-sm btn-outline-secondary">← К документации</a>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Автоматизированный процесс обновления системы на сервере с проверками и резервным копированием.</p>
+                    
+                    <hr>
+                    
+                    <h4 class="mt-4 mb-3">
+                        <i class="fas fa-sync-alt text-primary me-2"></i>
+                        Автоматическое обновление
+                    </h4>
+                    
+                    <p>Для обновления системы используйте скрипт <code>full_update.sh</code>:</p>
+                    <pre class="bg-light p-3 rounded"><code>cd /opt/crm_parfume
+sudo ./full_update.sh</code></pre>
+                    
+                    <h5 class="mt-3">Что делает скрипт:</h5>
+                    <ol>
+                        <li><strong>Резервное копирование базы данных</strong> - создает копию перед обновлением</li>
+                        <li><strong>Обновление кода из Git</strong> - получает последние изменения из репозитория</li>
+                        <li><strong>Анализ изменений</strong> - определяет необходимость пересборки Docker образа</li>
+                        <li><strong>Пересборка образа</strong> (если нужно) - собирает новый Docker образ с обновленным кодом</li>
+                        <li><strong>Перезапуск контейнера</strong> - останавливает и запускает контейнер с новым образом</li>
+                        <li><strong>Применение миграций</strong> - автоматически применяет все миграции базы данных</li>
+                        <li><strong>Проверка прав доступа</strong> - проверяет и исправляет права в базе данных</li>
+                        <li><strong>Синхронизация ролей</strong> - синхронизирует описания ролей и права</li>
+                        <li><strong>Проверка работоспособности</strong> - проверяет, что приложение работает корректно</li>
+                    </ol>
+                    
+                    <div class="alert alert-info mt-3">
+                        <strong>Примечание:</strong> Скрипт автоматически обрабатывает локальные изменения в Git и конфликты при обновлении.
+                    </div>
+                    
+                    <hr>
+                    
+                    <h4 class="mt-4 mb-3">
+                        <i class="fas fa-database text-success me-2"></i>
+                        Резервное копирование
+                    </h4>
+                    <p>Скрипт автоматически создает резервную копию базы данных перед обновлением. Копии хранятся в директории <code>./backups/</code>.</p>
+                    <p>Автоматически удаляются старые копии, оставляются только последние 10.</p>
+                    
+                    <hr>
+                    
+                    <h4 class="mt-4 mb-3">
+                        <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                        Ручное обновление (если автоматическое не работает)
+                    </h4>
+                    
+                    <h5>Шаг 1: Резервное копирование</h5>
+                    <pre class="bg-light p-3 rounded"><code>cd /opt/crm_parfume
+sudo docker cp parfume-crm:/app/data/crm.db ./backups/crm_backup_$(date +%Y%m%d_%H%M%S).db</code></pre>
+                    
+                    <h5>Шаг 2: Обновление кода</h5>
+                    <pre class="bg-light p-3 rounded"><code>sudo git pull origin main</code></pre>
+                    
+                    <h5>Шаг 3: Пересборка образа</h5>
+                    <pre class="bg-light p-3 rounded"><code>sudo docker-compose build</code></pre>
+                    
+                    <h5>Шаг 4: Перезапуск контейнера</h5>
+                    <pre class="bg-light p-3 rounded"><code>sudo docker-compose down
+sudo docker-compose up -d</code></pre>
+                    
+                    <h5>Шаг 5: Применение миграций</h5>
+                    <pre class="bg-light p-3 rounded"><code>sudo docker-compose exec crm alembic upgrade head</code></pre>
+                    
+                    <h5>Шаг 6: Проверка работоспособности</h5>
+                    <pre class="bg-light p-3 rounded"><code>curl http://localhost:8000/health</code></pre>
+                    
+                    <hr>
+                    
+                    <h4 class="mt-4 mb-3">
+                        <i class="fas fa-question-circle text-info me-2"></i>
+                        Решение проблем
+                    </h4>
+                    
+                    <h5>Проблема: Конфликт локальных изменений</h5>
+                    <p>Если при обновлении возникает конфликт локальных изменений:</p>
+                    <pre class="bg-light p-3 rounded"><code>sudo git reset --hard HEAD
+sudo git pull origin main</code></pre>
+                    
+                    <h5>Проблема: Миграции не применяются</h5>
+                    <p>Проверьте текущую версию миграций:</p>
+                    <pre class="bg-light p-3 rounded"><code>sudo docker-compose exec crm alembic current</code></pre>
+                    <p>Примените миграции вручную:</p>
+                    <pre class="bg-light p-3 rounded"><code>sudo docker-compose exec crm alembic upgrade head</code></pre>
+                    
+                    <h5>Проблема: Приложение не запускается</h5>
+                    <p>Проверьте логи контейнера:</p>
+                    <pre class="bg-light p-3 rounded"><code>sudo docker logs parfume-crm --tail=100</code></pre>
+                    <p>Проверьте статус контейнера:</p>
+                    <pre class="bg-light p-3 rounded"><code>sudo docker ps -a</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

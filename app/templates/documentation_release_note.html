@@ -1,0 +1,57 @@
+{% extends "layout.html" %}
+
+{% block title %}Версия {{ release_note.version }} - Документация - Parfume CRM{% endblock %}
+
+{% block page_title %}Версия {{ release_note.version }} - {{ release_note.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title mb-0">Версия {{ release_note.version }}</h3>
+                    <a href="/settings/docs" class="btn btn-sm btn-outline-secondary">← К документации</a>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <span class="badge 
+                            {% if release_note.release_type == 'major' %}bg-danger
+                            {% elif release_note.release_type == 'minor' %}bg-primary
+                            {% else %}bg-secondary{% endif %} me-2">
+                            {% if release_note.release_type == 'major' %}Крупное обновление
+                            {% elif release_note.release_type == 'minor' %}Новые функции
+                            {% else %}Исправления{% endif %}
+                        </span>
+                        <span class="text-muted">Дата релиза: {{ release_note.release_date.strftime('%d.%m.%Y') }}</span>
+                    </div>
+                    
+                    <h4>{{ release_note.title }}</h4>
+                    
+                    {% if release_note.description %}
+                    <div class="mt-3">
+                        <p>{{ release_note.description }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    {% if release_note.changes %}
+                    <hr>
+                    <h5>Список изменений:</h5>
+                    <div class="mt-3">
+                        {{ release_note.changes|replace('\n', '<br>')|safe }}
+                    </div>
+                    {% endif %}
+                    
+                    <hr>
+                    
+                    <div class="d-flex gap-2">
+                        <a href="/release_notes/{{ release_note.id }}" class="btn btn-outline-primary">Подробнее о релизе</a>
+                        <a href="/settings/docs" class="btn btn-outline-secondary">К документации</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

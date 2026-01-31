@@ -87,14 +87,14 @@
       </a>
     </li>
     <li class="nav-item">
-      <a class="nav-link d-flex justify-content-between align-items-center {% if active_menu in ['settings_roles','settings_security','admin_catalog'] %}active{% endif %}"
+      <a class="nav-link d-flex justify-content-between align-items-center {% if active_menu in ['settings_roles','settings_users','settings_security','settings_docs','admin_catalog'] %}active{% endif %}"
          data-bs-toggle="collapse" href="#settingsMenu" role="button"
-         aria-expanded="{% if active_menu in ['settings_roles','settings_security','admin_catalog'] %}true{% else %}false{% endif %}"
+         aria-expanded="{% if active_menu in ['settings_roles','settings_users','settings_security','settings_docs','admin_catalog'] %}true{% else %}false{% endif %}"
          aria-controls="settingsMenu">
         <span class="d-flex align-items-center"><i class="nav-icon fas fa-cog me-2"></i><span>Настройки</span></span>
         <i class="fas fa-chevron-down small"></i>
       </a>
-      <div class="collapse {% if active_menu in ['settings_roles','settings_users','settings_security','admin_catalog'] %}show{% endif %}" id="settingsMenu">
+      <div class="collapse {% if active_menu in ['settings_roles','settings_users','settings_security','settings_docs','admin_catalog'] %}show{% endif %}" id="settingsMenu">
         <ul class="nav flex-column ms-3 mt-1">
           <li class="nav-item">
             <a class="nav-link {% if active_menu == 'settings_roles' %}active{% endif %}" href="/settings/roles">
@@ -112,6 +112,12 @@
             <a class="nav-link {% if active_menu == 'settings_security' %}active{% endif %}" href="/settings/security">
               <i class="nav-icon fas fa-shield-alt me-2"></i>
               <span>Безопасность</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if active_menu == 'settings_docs' %}active{% endif %}" href="/settings/docs">
+              <i class="nav-icon fas fa-book me-2"></i>
+              <span>Документация</span>
             </a>
           </li>
           <li class="nav-item">

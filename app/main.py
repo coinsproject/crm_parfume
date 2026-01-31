@@ -27,6 +27,7 @@ from app.routes.admin_catalog import router as admin_catalog_router
 from app.routes.internal_catalog import router as internal_catalog_router
 from app.routes.catalog_items import router as catalog_items_router
 from app.routes.mobile_api import router as mobile_api_router
+from app.routes.documentation import router as documentation_router
 # Инициализация кастомных логгеров, чтобы они точно повесили хендлеры
 from app.logging_config import partners_logger, orders_logger  # noqa: F401
 from app.services.auth_service import get_current_user_optional, get_current_user_from_cookie, get_user_permission_keys
@@ -129,6 +130,7 @@ app.include_router(admin_catalog_router)
 app.include_router(internal_catalog_router)
 app.include_router(catalog_items_router)
 app.include_router(mobile_api_router)
+app.include_router(documentation_router)
 
 
 @app.exception_handler(HTTPException)
