@@ -353,6 +353,31 @@ else
 fi
 
 # ============================================================================
+# ШАГ 8.5: Синхронизация ролей с локальной версией (русификация)
+# ============================================================================
+print_section "ШАГ 8.5: Синхронизация ролей (русификация описаний)"
+
+if [ -f "sync_roles_to_local.py" ]; then
+    echo -e "${BLUE}Копирование скрипта синхронизации ролей в контейнер...${NC}"
+    if docker cp sync_roles_to_local.py crm:/app/sync_roles_to_local.py 2>/dev/null || \
+       $DOCKER_COMPOSE exec -T crm sh -c "cat > /app/sync_roles_to_local.py" < sync_roles_to_local.py 2>/dev/null; then
+        echo -e "${GREEN}✓ Скрипт скопирован${NC}"
+        
+        echo -e "${BLUE}Запуск синхронизации ролей...${NC}\n"
+        if $DOCKER_COMPOSE exec -T crm python sync_roles_to_local.py; then
+            echo -e "\n${GREEN}✓ Роли синхронизированы с локальной версией${NC}"
+            $DOCKER_COMPOSE exec -T crm rm -f /app/sync_roles_to_local.py 2>/dev/null || true
+        else
+            echo -e "${YELLOW}⚠ Ошибка при синхронизации ролей (продолжаем)${NC}"
+        fi
+    else
+        echo -e "${YELLOW}⚠ Не удалось скопировать скрипт (продолжаем)${NC}"
+    fi
+else
+    echo -e "${YELLOW}⚠ Скрипт sync_roles_to_local.py не найден (пропускаем)${NC}"
+fi
+
+# ============================================================================
 # ШАГ 9: Анализ состояния системы
 # ============================================================================
 print_section "ШАГ 9: Анализ состояния системы"
