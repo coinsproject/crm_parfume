@@ -259,85 +259,17 @@ sudo systemctl restart crm
 
 ### Скрипт для автоматического обновления
 
-Используйте скрипт `full_update.sh`:
+В проекте уже есть готовый скрипт `full_update.sh`, который выполняет все необходимые операции:
 
-```bash
-#!/bin/bash
-set -e
-
-echo "=== Начало обновления CRM ==="
-
-# Цвета для вывода
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-# Директория проекта
-PROJECT_DIR="/path/to/crm_parfume"
-cd "$PROJECT_DIR"
-
-# 1. Резервное копирование
-echo -e "${YELLOW}Создание резервной копии...${NC}"
-BACKUP_DIR="./backups"
-mkdir -p "$BACKUP_DIR"
-BACKUP_FILE="$BACKUP_DIR/crm_backup_$(date +%Y%m%d_%H%M%S).db"
-
-if [ -f "./data/crm.db" ]; then
-    docker-compose exec -T crm sqlite3 /app/data/crm.db ".backup /app/data/backup_temp.db" || \
-    cp ./data/crm.db "$BACKUP_FILE"
-    echo -e "${GREEN}Резервная копия создана: $BACKUP_FILE${NC}"
-else
-    echo -e "${RED}Файл БД не найден!${NC}"
-    exit 1
-fi
-
-# 2. Обновление кода
-echo -e "${YELLOW}Обновление кода из Git...${NC}"
-git fetch origin main
-LOCAL=$(git rev-parse @)
-REMOTE=$(git rev-parse @{u})
-
-if [ "$LOCAL" = "$REMOTE" ]; then
-    echo -e "${GREEN}Уже на последней версии${NC}"
-    exit 0
-fi
-
-git pull origin main
-echo -e "${GREEN}Код обновлен${NC}"
-
-# 3. Пересборка (если нужно)
-echo -e "${YELLOW}Проверка изменений в Dockerfile...${NC}"
-if git diff HEAD~1 HEAD --name-only | grep -q "Dockerfile\|requirements.txt"; then
-    echo -e "${YELLOW}Пересборка Docker образа...${NC}"
-    docker-compose build
-fi
-
-# 4. Применение миграций
-echo -e "${YELLOW}Применение миграций...${NC}"
-docker-compose up -d
-sleep 5
-docker-compose exec crm alembic upgrade head || {
-    echo -e "${RED}Ошибка при применении миграций!${NC}"
-    echo -e "${YELLOW}Откат к предыдущей версии...${NC}"
-    git checkout HEAD~1
-    docker-compose restart
-    exit 1
-}
-
-# 5. Проверка
-echo -e "${YELLOW}Проверка работоспособности...${NC}"
-sleep 3
-if curl -f http://localhost:8000/health > /dev/null 2>&1; then
-    echo -e "${GREEN}Приложение работает корректно!${NC}"
-else
-    echo -e "${RED}Приложение не отвечает!${NC}"
-    echo -e "${YELLOW}Проверьте логи: docker-compose logs${NC}"
-    exit 1
-fi
-
-echo -e "${GREEN}=== Обновление завершено успешно ===${NC}"
-```
+- Резервное копирование базы данных
+- Обновление кода из Git
+- Анализ изменений и определение необходимости пересборки
+- Пересборка Docker образа (если нужно)
+- Перезапуск контейнера
+- Применение миграций Alembic
+- Проверка и исправление прав доступа
+- Синхронизация ролей (русификация)
+- Проверка работоспособности приложения
 
 Сделайте скрипт исполняемым:
 
@@ -350,6 +282,13 @@ chmod +x full_update.sh
 ```bash
 sudo ./full_update.sh
 ```
+
+Скрипт автоматически:
+- Создаст резервную копию БД перед обновлением
+- Определит, нужна ли пересборка Docker образа
+- Применит все миграции
+- Проверит работоспособность приложения
+- Покажет подробную информацию о процессе обновления
 
 ## Рекомендации по безопасности
 
