@@ -41,8 +41,9 @@ def fix_permissions():
         existing_permissions = {p.key: p for p in db.query(Permission).all()}
         print(f"Найдено прав в базе: {len(existing_permissions)}")
         
-        # Проверяем и добавляем недостающие права
+        # Проверяем и добавляем недостающие права, обновляем существующие
         added_count = 0
+        updated_count = 0
         for key, label in ALL_PERMISSIONS:
             if key not in existing_permissions:
                 print(f"  + Добавляем право: {key} ({label})")
@@ -50,13 +51,23 @@ def fix_permissions():
                 db.add(new_perm)
                 added_count += 1
             else:
-                print(f"  ✓ Право уже существует: {key}")
+                # Обновляем название права, если оно отличается
+                existing_perm = existing_permissions[key]
+                if existing_perm.label != label:
+                    print(f"  ↻ Обновляем название права: {key} ('{existing_perm.label}' → '{label}')")
+                    existing_perm.label = label
+                    updated_count += 1
+                else:
+                    print(f"  ✓ Право уже существует: {key}")
         
-        if added_count > 0:
+        if added_count > 0 or updated_count > 0:
             db.commit()
-            print(f"\n✓ Добавлено {added_count} новых прав")
+            if added_count > 0:
+                print(f"\n✓ Добавлено {added_count} новых прав")
+            if updated_count > 0:
+                print(f"✓ Обновлено {updated_count} названий прав")
         else:
-            print("\n✓ Все права уже присутствуют в базе")
+            print("\n✓ Все права уже присутствуют в базе с корректными названиями")
         
         # Проверяем роли и их права
         print("\n=== Проверка ролей и их прав ===\n")
