@@ -418,6 +418,31 @@ else
 fi
 
 # ============================================================================
+# ШАГ 8.6: Синхронизация релиз-ноутсов
+# ============================================================================
+print_section "ШАГ 8.6: Синхронизация релиз-ноутсов"
+
+if [ -f "sync_release_notes.py" ]; then
+    echo -e "${BLUE}Копирование скрипта синхронизации релиз-ноутсов в контейнер...${NC}"
+    if docker cp sync_release_notes.py crm:/app/sync_release_notes.py 2>/dev/null || \
+       $DOCKER_COMPOSE exec -T crm sh -c "cat > /app/sync_release_notes.py" < sync_release_notes.py 2>/dev/null; then
+        echo -e "${GREEN}✓ Скрипт скопирован${NC}"
+        
+        echo -e "${BLUE}Запуск синхронизации релиз-ноутсов...${NC}\n"
+        if $DOCKER_COMPOSE exec -T crm python sync_release_notes.py; then
+            echo -e "\n${GREEN}✓ Релиз-ноутсы синхронизированы${NC}"
+            $DOCKER_COMPOSE exec -T crm rm -f /app/sync_release_notes.py 2>/dev/null || true
+        else
+            echo -e "${YELLOW}⚠ Ошибка при синхронизации релиз-ноутсов (продолжаем)${NC}"
+        fi
+    else
+        echo -e "${YELLOW}⚠ Не удалось скопировать скрипт (продолжаем)${NC}"
+    fi
+else
+    echo -e "${YELLOW}⚠ Скрипт sync_release_notes.py не найден (пропускаем)${NC}"
+fi
+
+# ============================================================================
 # ШАГ 9: Анализ состояния системы
 # ============================================================================
 print_section "ШАГ 9: Анализ состояния системы"
