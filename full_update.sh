@@ -171,6 +171,10 @@ elif [ "$LOCAL" = "$REMOTE" ]; then
             echo -e "${YELLOW}Обновление отменено${NC}"
             exit 0
         fi
+        # Если пользователь согласился продолжить, сбрасываем локальные изменения
+        echo -e "${YELLOW}Сбрасываем локальные изменения...${NC}"
+        git reset --hard HEAD 2>/dev/null || true
+        CODE_UPDATED=true  # Устанавливаем флаг, чтобы пересобрать образ
     else
         echo -e "${BLUE}Нет изменений для применения${NC}"
         CODE_UPDATED=false
