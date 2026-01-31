@@ -465,7 +465,8 @@ async def create_invitation_endpoint(
 
     # Если роль PARTNER, проверяем обязательные поля
     if role.name == "PARTNER":
-        if not partner_full_name or len(partner_full_name.strip()) < 5:
+        partner_full_name_clean = (partner_full_name or "").strip()
+        if not partner_full_name_clean or len(partner_full_name_clean) < 5:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Укажите ФИО партнёра (минимум 5 символов)")
         phone_clean = "".join(ch for ch in (partner_phone or "") if ch.isdigit())
         if not phone_clean or len(phone_clean) < 10:
@@ -477,25 +478,32 @@ async def create_invitation_endpoint(
         if not partner:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Партнёр не найден")
 
-    invitation = create_invitation(
-        email=email,
-        role=role,
-        db=db,
-        partner_id=partner_id_int,
-        created_by_user=current_user,
-        partner_full_name=partner_full_name.strip() if partner_full_name else None,
-        partner_phone=partner_phone.strip() if partner_phone else None,
-        partner_telegram=partner_telegram.strip() if partner_telegram else None,
-    )
+    try:
+        invitation = create_invitation(
+            email=email,
+            role=role,
+            db=db,
+            partner_id=partner_id_int,
+            created_by_user=current_user,
+            partner_full_name=(partner_full_name or "").strip() if partner_full_name else None,
+            partner_phone=(partner_phone or "").strip() if partner_phone else None,
+            partner_telegram=(partner_telegram or "").strip() if partner_telegram else None,
+        )
 
-    auth_logger.info(f"Admin {current_user.username} created invitation {invitation.id} for email {email}")
+        auth_logger.info(f"Admin {current_user.username} created invitation {invitation.id} for email {email}")
 
-    return {
-        "success": True,
-        "invitation_token": invitation.token,
-        "invitation_link": f"/invite/{invitation.token}",
-        "expires_at": invitation.expires_at.isoformat()
-    }
+        return {
+            "success": True,
+            "invitation_token": invitation.token,
+            "invitation_link": f"/invite/{invitation.token}",
+            "expires_at": invitation.expires_at.isoformat()
+        }
+    except Exception as e:
+        auth_logger.error(f"Error creating invitation: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ошибка при создании приглашения: {str(e)}"
+        )
 
 
 @router.get("/roles", response_class=HTMLResponse)
