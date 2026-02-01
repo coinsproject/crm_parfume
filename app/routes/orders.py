@@ -819,18 +819,23 @@ async def order_price_search_api(
     base_price_by_pid: dict[int, Decimal] = {}
     if product_ids and (user_has_permission(current_user, db, "prices.view_client") or user_has_permission(current_user, db, "prices.view_cost")):
         # Используем ту же логику, что и в order_price_product_api для получения актуальных цен
-        # Берем цены из последней PriceHistory (как в order_price_product_api)
+        # Сначала проверяем PriceProduct.price_2, затем PriceHistory
         for product in products:
-            history = (
-                db.query(PriceHistory)
-                .filter(PriceHistory.price_product_id == product.id)
-                .order_by(PriceHistory.created_at.desc())
-                .first()
-            )
-            if history:
-                val = history.new_price_2 if history.new_price_2 is not None else history.price
-                if val is not None:
-                    base_price_by_pid[product.id] = Decimal(str(val))
+            # Приоритет 1: PriceProduct.price_2 (если есть)
+            if product.price_2 is not None:
+                base_price_by_pid[product.id] = Decimal(str(product.price_2))
+            else:
+                # Приоритет 2: последняя PriceHistory
+                history = (
+                    db.query(PriceHistory)
+                    .filter(PriceHistory.price_product_id == product.id)
+                    .order_by(PriceHistory.created_at.desc())
+                    .first()
+                )
+                if history:
+                    val = history.new_price_2 if history.new_price_2 is not None else history.price
+                    if val is not None:
+                        base_price_by_pid[product.id] = Decimal(str(val))
 
     # Определяем partner_id и client_id для применения накруток
     partner_id_int = None
@@ -899,16 +904,21 @@ async def order_price_product_api(
 
     base_price = None
     if user_has_permission(current_user, db, "prices.view_client") or user_has_permission(current_user, db, "prices.view_cost"):
-        history = (
-            db.query(PriceHistory)
-            .filter(PriceHistory.price_product_id == product.id)
-            .order_by(PriceHistory.created_at.desc())
-            .first()
-        )
-        if history:
-            val = history.new_price_2 if history.new_price_2 is not None else history.price
-            if val is not None:
-                base_price = Decimal(str(val))
+        # Приоритет 1: PriceProduct.price_2 (если есть)
+        if product.price_2 is not None:
+            base_price = Decimal(str(product.price_2))
+        else:
+            # Приоритет 2: последняя PriceHistory
+            history = (
+                db.query(PriceHistory)
+                .filter(PriceHistory.price_product_id == product.id)
+                .order_by(PriceHistory.created_at.desc())
+                .first()
+            )
+            if history:
+                val = history.new_price_2 if history.new_price_2 is not None else history.price
+                if val is not None:
+                    base_price = Decimal(str(val))
 
     # Определяем partner_id и client_id для применения накруток
     partner_id_int = None
