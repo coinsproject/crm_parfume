@@ -818,24 +818,37 @@ async def order_price_search_api(
     product_ids = [p.id for p in products]
     base_price_by_pid: dict[int, Decimal] = {}
     if product_ids and (user_has_permission(current_user, db, "prices.view_client") or user_has_permission(current_user, db, "prices.view_cost")):
-        # Используем ту же логику, что и в order_price_product_api для получения актуальных цен
-        # Сначала проверяем PriceProduct.price_2, затем PriceHistory
+        # Используем ту же логику, что и в fill_item_prices для получения актуальных цен
+        # Сначала получаем цены из PriceHistory (как в fill_item_prices)
         for product in products:
-            # Приоритет 1: PriceProduct.price_2 (если есть)
-            if product.price_2 is not None:
-                base_price_by_pid[product.id] = Decimal(str(product.price_2))
+            history = (
+                db.query(PriceHistory)
+                .filter(PriceHistory.price_product_id == product.id)
+                .order_by(PriceHistory.created_at.desc())
+                .first()
+            )
+            if history:
+                # Берем price_1 (приоритет) или price_2 (fallback) для base_price_raw
+                price_1 = None
+                price_2 = None
+                if history.new_price_1 is not None:
+                    price_1 = Decimal(str(history.new_price_1))
+                elif history.old_price_1 is not None:
+                    price_1 = Decimal(str(history.old_price_1))
+                
+                if history.new_price_2 is not None:
+                    price_2 = Decimal(str(history.new_price_2))
+                elif history.price is not None:
+                    price_2 = Decimal(str(history.price))
+                
+                # base_price_raw = price_1 (приоритет) или price_2 (fallback)
+                base_price_raw = price_1 if price_1 is not None else price_2
+                if base_price_raw is not None:
+                    base_price_by_pid[product.id] = base_price_raw
             else:
-                # Приоритет 2: последняя PriceHistory
-                history = (
-                    db.query(PriceHistory)
-                    .filter(PriceHistory.price_product_id == product.id)
-                    .order_by(PriceHistory.created_at.desc())
-                    .first()
-                )
-                if history:
-                    val = history.new_price_2 if history.new_price_2 is not None else history.price
-                    if val is not None:
-                        base_price_by_pid[product.id] = Decimal(str(val))
+                # Fallback на PriceProduct.price_2, если нет истории
+                if product.price_2 is not None:
+                    base_price_by_pid[product.id] = Decimal(str(product.price_2))
 
     # Определяем partner_id и client_id для применения накруток
     partner_id_int = None
@@ -860,17 +873,23 @@ async def order_price_search_api(
             pass
 
     # Применяем накрутки к ценам
-    # ВАЖНО: Используем ту же логику, что и при добавлении товара в заказ
+    # ВАЖНО: Используем ту же логику, что и в fill_item_prices
+    from app.services.partner_pricing_service import get_partner_pricing_policy, calc_partner_price
     price_by_pid: dict[int, float] = {}
-    for pid, base_price in base_price_by_pid.items():
+    for pid, base_price_raw in base_price_by_pid.items():
         if partner_id_int:
-            # Если есть партнер, применяем накрутки
+            # Если есть партнер, сначала применяем надбавку партнера на прайс
+            policy = get_partner_pricing_policy(db, partner_id_int)
+            partner_price_markup_pct = policy.partner_price_markup_percent
+            # Получаем цену партнера (с надбавкой на прайс)
+            partner_base_price = calc_partner_price(base_price_raw, partner_price_markup_pct)
+            # Затем применяем накрутки клиента к цене партнера
             total_markup = get_total_markup_percent(db, partner_id_int, client_id=client_id_int)
-            client_price = calc_client_price(base_price, total_markup)
+            client_price = calc_client_price(partner_base_price, total_markup)
             price_by_pid[pid] = float(client_price)
         else:
             # Если нет партнера, используем базовую цену (без накруток)
-            price_by_pid[pid] = float(base_price)
+            price_by_pid[pid] = float(base_price_raw)
 
     return [
         {
@@ -902,23 +921,35 @@ async def order_price_product_api(
     if not product:
         raise HTTPException(status_code=404, detail="Товар не найден")
 
-    base_price = None
+    base_price_raw = None
     if user_has_permission(current_user, db, "prices.view_client") or user_has_permission(current_user, db, "prices.view_cost"):
-        # Приоритет 1: PriceProduct.price_2 (если есть)
-        if product.price_2 is not None:
-            base_price = Decimal(str(product.price_2))
+        # Используем ту же логику, что и в fill_item_prices
+        history = (
+            db.query(PriceHistory)
+            .filter(PriceHistory.price_product_id == product.id)
+            .order_by(PriceHistory.created_at.desc())
+            .first()
+        )
+        if history:
+            # Берем price_1 (приоритет) или price_2 (fallback) для base_price_raw
+            price_1 = None
+            price_2 = None
+            if history.new_price_1 is not None:
+                price_1 = Decimal(str(history.new_price_1))
+            elif history.old_price_1 is not None:
+                price_1 = Decimal(str(history.old_price_1))
+            
+            if history.new_price_2 is not None:
+                price_2 = Decimal(str(history.new_price_2))
+            elif history.price is not None:
+                price_2 = Decimal(str(history.price))
+            
+            # base_price_raw = price_1 (приоритет) или price_2 (fallback)
+            base_price_raw = price_1 if price_1 is not None else price_2
         else:
-            # Приоритет 2: последняя PriceHistory
-            history = (
-                db.query(PriceHistory)
-                .filter(PriceHistory.price_product_id == product.id)
-                .order_by(PriceHistory.created_at.desc())
-                .first()
-            )
-            if history:
-                val = history.new_price_2 if history.new_price_2 is not None else history.price
-                if val is not None:
-                    base_price = Decimal(str(val))
+            # Fallback на PriceProduct.price_2, если нет истории
+            if product.price_2 is not None:
+                base_price_raw = Decimal(str(product.price_2))
 
     # Определяем partner_id и client_id для применения накруток
     partner_id_int = None
@@ -942,15 +973,23 @@ async def order_price_product_api(
         except ValueError:
             pass
 
-    # Применяем накрутки к цене, если есть партнер
+    # Применяем накрутки к цене
+    # ВАЖНО: Используем ту же логику, что и в fill_item_prices
+    from app.services.partner_pricing_service import get_partner_pricing_policy, calc_partner_price
     final_price = None
-    if base_price is not None:
+    if base_price_raw is not None:
         if partner_id_int:
+            # Если есть партнер, сначала применяем надбавку партнера на прайс
+            policy = get_partner_pricing_policy(db, partner_id_int)
+            partner_price_markup_pct = policy.partner_price_markup_percent
+            # Получаем цену партнера (с надбавкой на прайс)
+            partner_base_price = calc_partner_price(base_price_raw, partner_price_markup_pct)
+            # Затем применяем накрутки клиента к цене партнера
             total_markup = get_total_markup_percent(db, partner_id_int, client_id=client_id_int)
-            client_price = calc_client_price(base_price, total_markup)
+            client_price = calc_client_price(partner_base_price, total_markup)
             final_price = float(client_price)
         else:
-            final_price = float(base_price)
+            final_price = float(base_price_raw)
 
     return {
         "id": product.id,
