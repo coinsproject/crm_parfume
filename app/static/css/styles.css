@@ -40,6 +40,20 @@ body {
     margin-bottom: 1.5rem;
 }
 
+.sidebar-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar-logo-img {
+    max-width: 180px;
+    max-height: 60px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
 .logo {
     font-size: 1.5rem;
     font-weight: 600;
@@ -1138,10 +1152,28 @@ body {
     text-align: center;
 }
 
+.auth-logo {
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.auth-logo-img {
+    max-width: 200px;
+    max-height: 120px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    margin-bottom: 1rem;
+}
+
 .auth-logo h2 {
     color: #6366f1;
     margin-bottom: 1.5rem;
     font-weight: 700;
+    display: block;
 }
 
 .auth-title {

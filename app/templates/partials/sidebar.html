@@ -1,6 +1,7 @@
 <div class="sidebar-inner d-flex flex-column h-100">
   <div class="sidebar-brand px-3 py-3">
-    <span class="fw-bold">Мелодия флаконов</span>
+    <img src="/static/img/logo.png" alt="Мелодия флаконов" class="sidebar-logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+    <span class="fw-bold" style="display: none;">Мелодия флаконов</span>
   </div>
 
   {% set perms = request.state.permission_keys %}
