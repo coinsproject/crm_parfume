@@ -205,7 +205,7 @@ Email: {email}
 Ссылка: {activation_url}
 
 ---
-Это автоматическое уведомление от Parfume CRM.
+Это автоматическое уведомление от Мелодия флаконов.
 """
             
             email_html_body = f"""<html>
@@ -219,7 +219,7 @@ Email: {email}
     </ul>
     <p><a href="{activation_url}">Активировать пользователя</a></p>
     <hr>
-    <p><small>Это автоматическое уведомление от Parfume CRM.</small></p>
+    <p><small>Это автоматическое уведомление от Мелодия флаконов.</small></p>
 </body>
 </html>"""
             
