@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Parfume CRM{% endblock %}</title>
+  <title>{% block title %}Мелодия флаконов{% endblock %}</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/styles.css?v={% if current_user %}{{ current_version }}{% else %}1.0.0{% endif %}">
@@ -207,7 +207,7 @@
   {% block scripts %}{% endblock %}
   <footer class="app-footer mt-auto py-2 text-center text-muted small border-top" style="background-color: #f8f9fa;">
     <div class="container-fluid">
-      <span>Parfume CRM v{% if current_user %}{{ current_version }}{% else %}1.0.0{% endif %}</span>
+      <span>Мелодия флаконов v{% if current_user %}{{ current_version }}{% else %}1.0.0{% endif %}</span>
       {% if current_user %}
       <span class="mx-2">|</span>
       <a href="/release_notes" class="text-muted text-decoration-none">Что нового?</a>
