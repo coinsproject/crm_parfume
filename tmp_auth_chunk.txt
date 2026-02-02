@@ -1,6 +1,0 @@
-331:             current_user.role = role
-332:             return current_user
-333: 
-334:         if not role:
-335:             raise HTTPException(
-336:                 status_code=status.HTTP_403_FORBIDDEN,

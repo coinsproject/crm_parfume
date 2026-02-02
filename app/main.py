@@ -30,7 +30,7 @@ from app.routes.mobile_api import router as mobile_api_router
 from app.routes.documentation import router as documentation_router
 # Инициализация кастомных логгеров, чтобы они точно повесили хендлеры
 from app.logging_config import partners_logger, orders_logger  # noqa: F401
-from app.services.auth_service import get_current_user_optional, get_current_user_from_cookie, get_user_permission_keys
+from app.services.auth_service import get_current_user_from_cookie, get_user_permission_keys
 from app.db import SessionLocal
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -56,7 +56,7 @@ def from_json_filter(value):
 templates.env.filters["from_json"] = from_json_filter
 
 # Добавляем фильтр date для Jinja2
-from datetime import datetime
+from datetime import datetime, date
 def date_filter(value, format='%Y-%m-%d'):
     """Фильтр Jinja2 для форматирования даты"""
     if value == 'now':
